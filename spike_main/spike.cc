@@ -354,7 +354,11 @@ int main(int argc, char** argv)
             /*default_endianness*/endianness_little,
             /*default_dirty_enabled*/false,
             /*default_pmpregions=*/16,
+#ifdef EXPANDED_DRAM_ADDRESS_RANGE
+            /*default_mem_layout=*/parse_mem_layout("0x100000:8000000000"),
+#else
             /*default_mem_layout=*/parse_mem_layout("2048"),
+#endif
             /*default_hartids=*/std::vector<int>(),
             /*default_real_time_clint=*/false,
             /*default_trigger_count=*/4);

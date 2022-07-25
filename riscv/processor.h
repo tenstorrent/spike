@@ -17,6 +17,8 @@
 #include "triggers.h"
 #include "../fesvr/memif.h"
 #include "vector_unit.h"
+#include "end_pc_exception.h"
+#include "max_instrs_exception.h"
 
 #define N_HPMCOUNTERS 29
 
@@ -251,6 +253,8 @@ public:
   }
   reg_t legalize_privilege(reg_t);
   void set_privilege(reg_t);
+  void set_end_pc(reg_t);
+  void set_max_instrs(reg_t);
   void set_virt(bool);
   const char* get_privilege_string();
   void update_histogram(reg_t pc);
@@ -295,6 +299,9 @@ private:
   state_t state;
   uint32_t id;
   unsigned xlen;
+  reg_t end_pc;
+  reg_t max_instrs;
+  reg_t step_count;
   bool histogram_enabled;
   bool log_commits_enabled;
   FILE *log_file;

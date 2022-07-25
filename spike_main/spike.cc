@@ -86,6 +86,8 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --dm-no-halt-groups   Debug module won't support halt groups\n");
   fprintf(stderr, "  --dm-no-impebreak     Debug module won't support implicit ebreak in program buffer\n");
   fprintf(stderr, "  --blocksz=<size>      Cache block size (B) for CMO operations(powers of 2) [default 64]\n");
+  fprintf(stderr, "  --end-pc              Optionally terminate simulation after this pc is reached\n");
+  fprintf(stderr, "  --max-instrs          Optionally terminate simulation after this number of instructions have been executed\n");
 
   exit(exit_code);
 }
@@ -494,6 +496,8 @@ int main(int argc, char** argv)
       exit(-1);
     }
   });
+  parser.option(0, "end-pc", 1, [&](const char* s){cfg.end_pc = strtoull(s, 0, 16);});
+  parser.option(0, "max-instrs", 1, [&](const char* s){cfg.max_instrs = strtoull(s, 0, 10);});
 
   auto argv1 = parser.parse(argv);
   std::vector<std::string> htif_args(argv1, (const char*const*)argv + argc);

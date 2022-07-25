@@ -100,6 +100,8 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   for (size_t i = 0; i < cfg->nprocs(); i++) {
     procs[i] = new processor_t(&isa, cfg, this, cfg->hartids()[i], halted,
                                log_file.get(), sout_);
+    procs[i]->set_end_pc(cfg->end_pc.value_or(reg_t(-1)));
+    procs[i]->set_max_instrs(cfg->max_instrs.value_or(reg_t(-1)));
   }
 
   make_dtb();

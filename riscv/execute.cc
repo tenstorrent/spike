@@ -227,18 +227,19 @@ void processor_t::step(size_t n)
     mmu_t* _mmu = mmu;
 
     #define advance_pc() \
-      if (unlikely(invalid_pc(pc))) { \
-        switch (pc) { \
-          case PC_SERIALIZE_BEFORE: state.serialized = true; break; \
-          case PC_SERIALIZE_AFTER: ++instret; break; \
-          default: abort(); \
-        } \
-        pc = state.pc; \
-        break; \
-      } else { \
-        state.pc = pc; \
-        instret++; \
-      }
+     if (unlikely(invalid_pc(pc))) { \
+       switch (pc) { \
+         case PC_SERIALIZE_BEFORE: state.serialized = true; break; \
+         case PC_SERIALIZE_AFTER: ++instret; ++(this->step_count); break; \
+         default: abort(); \
+       } \
+       pc = state.pc; \
+       break; \
+     } else { \
+       state.pc = pc; \
+       instret++; \
+       (this->step_count)++; \
+     }
 
     try
     {
@@ -272,6 +273,16 @@ void processor_t::step(size_t n)
           if (debug && !state.serialized)
             disasm(fetch.insn);
           pc = execute_insn_logged(this, pc, fetch);
+         
+          if(pc >= this->end_pc)
+          {
+              throw end_pc_exception_t();
+          }
+          else if(this->step_count >= this->max_instrs)
+          {
+              throw max_instrs_exception_t();
+          }
+
           advance_pc();
         }
       }
@@ -287,11 +298,32 @@ void processor_t::step(size_t n)
           if (unlikely(instret + 1 == n))
             break;
           instret++;
+          (this->step_count)++;
+
+          if(pc >= this->end_pc)
+          {
+              throw end_pc_exception_t();
+          }
+          else if(this->step_count >= this->max_instrs)
+          {
+              throw max_instrs_exception_t();
+          }
+
+          throw max_instrs_exception_t();
+
           state.pc = pc;
         }
 
         advance_pc();
       }
+    }
+    catch(end_pc_exception_t& e)
+    {
+      exit(0);
+    }
+    catch(max_instrs_exception_t& e)
+    {
+      exit(0);
     }
     catch(trap_t& t)
     {

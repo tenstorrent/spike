@@ -100,6 +100,8 @@ public:
   reg_t                              pmpregions;
   cfg_arg_t<std::vector<mem_cfg_t>>  mem_layout;
   std::optional<reg_t>               start_pc;
+  std::optional<reg_t>               end_pc;
+  std::optional<reg_t>               max_instrs;
   cfg_arg_t<std::vector<int>>        hartids;
   bool                               explicit_hartids;
   cfg_arg_t<bool>                    real_time_clint;

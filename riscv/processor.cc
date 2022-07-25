@@ -35,7 +35,7 @@ processor_t::processor_t(const isa_parser_t *isa, const cfg_t *cfg,
   histogram_enabled(false), log_commits_enabled(false),
   log_file(log_file), sout_(sout_.rdbuf()), halt_on_reset(halt_on_reset),
   in_wfi(false),
-  impl_table(256, false), last_pc(1), executions(1), TM(cfg->trigger_count)
+  impl_table(256, false), last_pc(1), executions(1), TM(cfg->trigger_count), step_count(0)
 {
   VU.p = this;
   TM.proc = this;
@@ -723,6 +723,16 @@ const char* processor_t::get_privilege_string()
   }
   fprintf(stderr, "Invalid prv=%lx v=%x\n", (unsigned long)state.prv, state.v);
   abort();
+}
+
+void processor_t::set_end_pc(reg_t end_pc)
+{
+  this->end_pc = end_pc;
+}
+
+void processor_t::set_max_instrs(reg_t max_instrs)
+{
+  this->max_instrs = max_instrs;
 }
 
 void processor_t::set_virt(bool virt)

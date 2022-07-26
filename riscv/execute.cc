@@ -309,8 +309,6 @@ void processor_t::step(size_t n)
               throw max_instrs_exception_t();
           }
 
-          throw max_instrs_exception_t();
-
           state.pc = pc;
         }
 

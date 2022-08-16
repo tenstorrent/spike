@@ -791,6 +791,15 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     debug_output_log(&s);
   }
 
+  if(this->step_count >= this->max_instrs)
+  {
+    throw max_instrs_exception_t();
+  }
+  else
+  {
+    (this->step_count)++;
+  }
+
   if (state.debug_mode) {
     if (t.cause() == CAUSE_BREAKPOINT) {
       state.pc = DEBUG_ROM_ENTRY;

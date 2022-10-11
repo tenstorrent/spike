@@ -6,6 +6,11 @@
 #include "simif.h"
 #include "processor.h"
 
+#ifdef TABLE_WALK_DEBUG
+#include <iostream>
+#include <string>
+#endif
+
 mmu_t::mmu_t(simif_t* sim, endianness_t endianness, processor_t* proc)
  : sim(sim), proc(proc),
 #ifdef RISCV_ENABLE_DUAL_ENDIAN
@@ -467,6 +472,24 @@ reg_t mmu_t::walk(reg_t addr, access_type type, reg_t mode, bool virt, bool hlvx
     vm.levels = 0;
 
   reg_t base = vm.ptbase;
+
+
+  #ifdef TABLE_WALK_DEBUG
+  std::string at_string = "STORE";
+  if(type == FETCH)
+  {
+    at_string = "FETCH";
+  }
+  else if(type == LOAD)
+  {
+    at_string = "LOAD";
+  }
+  std::cout << "New table walk." <<
+               "\n\tVA: " << std::hex << addr <<
+               "\n\tAccess type: " << at_string <<
+               "\n\tNum levels: " << std::dec << vm.levels << std::endl;
+  #endif
+
   for (int i = vm.levels - 1; i >= 0; i--) {
     int ptshift = i * vm.idxbits;
     reg_t idx = (addr >> (PGSHIFT + ptshift)) & ((1 << vm.idxbits) - 1);
@@ -477,27 +500,79 @@ reg_t mmu_t::walk(reg_t addr, access_type type, reg_t mode, bool virt, bool hlvx
     reg_t ppn = (pte & ~reg_t(PTE_ATTR)) >> PTE_PPN_SHIFT;
     bool pbmte = virt ? (proc->get_state()->henvcfg->read() & HENVCFG_PBMTE) : (proc->get_state()->menvcfg->read() & MENVCFG_PBMTE);
 
+    #ifdef TABLE_WALK_DEBUG
+    std::cout << "\tPTE: " << std::hex << pte << ", PPN: " << std::hex << ppn << std::endl;
+    #endif
+
     if (pte & PTE_RSVD) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: (pte & PTE_RSVD)" << std::endl;
+      #endif
       break;
     } else if (!proc->extension_enabled(EXT_SVNAPOT) && (pte & PTE_N)) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: (!proc->extension_enabled(EXT_SVNAPOT) && (pte & PTE_N))" << std::endl;
+      #endif
       break;
     } else if (!pbmte && (pte & PTE_PBMT)) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: (!pbmte && (pte & PTE_PBMT))" << std::endl;
+      #endif
       break;
     } else if ((pte & PTE_PBMT) == PTE_PBMT) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: ((pte & PTE_PBMT) == PTE_PBMT)" << std::endl;
+      #endif
       break;
     } else if (PTE_TABLE(pte)) { // next level of page table
-      if (pte & (PTE_D | PTE_A | PTE_U | PTE_N | PTE_PBMT))
+      if (pte & (PTE_D | PTE_A | PTE_U | PTE_N | PTE_PBMT)){
+        #ifdef TABLE_WALK_DEBUG
+        std::cout << "Break: (pte & (PTE_D | PTE_A | PTE_U | PTE_N | PTE_PBMT))" << std::endl;
+        std::cout << "\tpte: " << std::hex << pte << std::endl;
+        std::cout << "\tPTE_D: " << PTE_D << " anded: "<< int(pte & PTE_D) << std::endl;
+        std::cout << "\tPTE_A: " << PTE_A << " anded: "<< int(pte & PTE_A) << std::endl;
+        std::cout << "\tPTE_U: " << PTE_U << " anded: "<< int(pte & PTE_U) << std::endl;
+        std::cout << "\tPTE_N: " << PTE_N << " anded: "<< int(pte & PTE_N) << std::endl;
+        std::cout << "\tPTE_PBMT: " << PTE_PBMT << " anded: " << int(pte & PTE_PBMT) << std::endl;
+        #endif
         break;
+      }
       base = ppn << PGSHIFT;
     } else if ((pte & PTE_U) ? s_mode && (type == FETCH || !sum) : !s_mode) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: ((pte & PTE_U) ? s_mode && (type == FETCH || !sum) : !s_mode) " << std::endl;
+      std::cout << "\t(pte & PTE_U): " << std::hex << int(pte & PTE_U) << std::endl;
+      std::cout << "\ts_mode && (type == FETCH || !sum): " << int(s_mode && (type == FETCH || !sum)) << std::endl;
+      std::cout << "\t!s_mode: " << int(!s_mode) << std::endl;
+      #endif
       break;
     } else if (!(pte & PTE_V) || (!(pte & PTE_R) && (pte & PTE_W))) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: (!(pte & PTE_V) || (!(pte & PTE_R) && (pte & PTE_W))) " << std::endl;
+      std::cout << "\t!(pte & PTE_V): " << int(!(pte & PTE_V)) << std::endl;
+      std::cout << "\t!(pte & PTE_R): " << int(!(pte & PTE_R)) << std::endl;
+      std::cout << "\tpte & PTE_W: " << int(pte & PTE_W) << std::endl;
+      #endif
       break;
     } else if (type == FETCH || hlvx ? !(pte & PTE_X) :
                type == LOAD          ? !(pte & PTE_R) && !(mxr && (pte & PTE_X)) :
                                        !((pte & PTE_R) && (pte & PTE_W))) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: " << std::endl;
+      std::cout << "\tTernary operator (type == FETCH || hlvx) ?" << int(type == FETCH || hlvx) << std::endl;
+      std::cout << "\t\tTrue path: !(pte & PTE_X): " << int(!(pte & PTE_X)) << std::endl;
+      std::cout << "\tFalse path, ternary operator: type == LOAD ?" << bool(type == LOAD) << std::endl;
+      std::cout << "\t\tTrue path: !(pte & PTE_R) && !(mxr && (pte & PTE_X)): " << int(!(pte & PTE_R) && !(mxr && (pte & PTE_X))) << std::endl;
+      std::cout << "\t\tFalse path: !((pte & PTE_R) && (pte & PTE_W)): " << int(!((pte & PTE_R) && (pte & PTE_W))) << std::endl;
+      #endif
       break;
     } else if ((ppn & ((reg_t(1) << ptshift) - 1)) != 0) {
+      #ifdef TABLE_WALK_DEBUG
+      std::cout << "Break: ((ppn & ((reg_t(1) << ptshift) - 1)) != 0) " << std::endl;
+      std::cout << "\tppn: " << std::hex << ppn << std::endl;
+      std::cout << "\tptshift: " << ptshift << std::endl;
+      std::cout << "\tmask: " << ((reg_t(1) << ptshift) -1) << std::endl;
+      #endif
       break;
     } else {
       reg_t ad = PTE_A | ((type == STORE) * PTE_D);
@@ -508,17 +583,31 @@ reg_t mmu_t::walk(reg_t addr, access_type type, reg_t mode, bool virt, bool hlvx
           pte_store(pte_paddr, pte | ad, addr, virt, type, vm.ptesize);
         } else {
           // take exception if access or possibly dirty bit is not set.
+          #ifdef TABLE_WALK_DEBUG
+          std::cout << "Break: ((pte & ad) != ad)" << std::endl;
+          std::cout << "\tpte: " << std::hex << int(pte) << std::endl;
+          std::cout << "\tad: " << std::hex << int(ad) << std::endl;
+          std::cout << "\tpte and ad: " << std::hex << int(pte & ad) << std::endl;
+          std::cout << "\tPTE_D: " << PTE_D << " anded: "<< int(pte & PTE_D) << std::endl;
+          std::cout << "\tPTE_A: " << PTE_A << " anded: "<< int(pte & PTE_A) << std::endl;
+          #endif
           break;
         }
       }
-
       // for superpage or Svnapot NAPOT mappings, make a fake leaf PTE for the TLB's benefit.
       reg_t vpn = addr >> PGSHIFT;
 
       int napot_bits = ((pte & PTE_N) ? (ctz(ppn) + 1) : 0);
-      if (((pte & PTE_N) && (ppn == 0 || i != 0)) || (napot_bits != 0 && napot_bits != 4))
+      if (((pte & PTE_N) && (ppn == 0 || i != 0)) || (napot_bits != 0 && napot_bits != 4)) {
+        #ifdef TABLE_WALK_DEBUG
+        std::cout << "Break: (((pte & PTE_N) && (ppn == 0 || i != 0)) || (napot_bits != 0 && napot_bits != 4))" << std::endl;
+        std::cout << "\t(pte & PTE_N): " << (pte & PTE_N) << std::endl;
+        std::cout << "\t(ppn == 0 || i != 0): " << (ppn == 0 || i != 0) << std::endl;
+        std::cout << "\t(napot_bits != 0 && napot_bits != 4): " << (napot_bits != 0 && napot_bits != 4) << std::endl;
+        std::cout << "\tnapot_bits: " << napot_bits  << std::endl;
+        #endif
         break;
-
+      }
       reg_t page_base = ((ppn & ~((reg_t(1) << napot_bits) - 1))
                         | (vpn & ((reg_t(1) << napot_bits) - 1))
                         | (vpn & ((reg_t(1) << ptshift) - 1))) << PGSHIFT;
@@ -527,6 +616,9 @@ reg_t mmu_t::walk(reg_t addr, access_type type, reg_t mode, bool virt, bool hlvx
     }
   }
 
+  #ifdef TABLE_WALK_DEBUG
+  std::cout << "Throwing a page fault reg_t mmu_t::walk(reg_t addr, access_type type, reg_t mode, bool virt, bool hlvx), during a: " << at_string << std::endl;
+  #endif
   switch (type) {
     case FETCH: throw trap_instruction_page_fault(virt, addr, 0, 0);
     case LOAD: throw trap_load_page_fault(virt, addr, 0, 0);

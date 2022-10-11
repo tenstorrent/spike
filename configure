@@ -716,6 +716,7 @@ with_priv
 with_varch
 with_target
 enable_dirty
+enable_table_walk_debug
 enable_dual_endian
 '
       ac_precious_vars='build_alias
@@ -1359,6 +1360,8 @@ Optional Features:
   --enable-stow           Enable stow-based install
   --enable-optional-subprojects
                           Enable all optional subprojects
+  --enable-table-walk-debug
+                          Prints information and error messages during table walk
   --enable-dual-endian    Enable support for running target in either
                           endianness
 
@@ -6042,6 +6045,19 @@ _ACEOF
 
 else
   as_fn_error $? "libpthread is required" "$LINENO" 5
+fi
+
+# Check whether --enable-table-walk-debug was given.
+if test "${enable_table_walk_debug+set}" = set; then :
+  enableval=$enable_table_walk_debug;
+fi
+
+if test "x$enable_table_walk_debug" = "xyes"; then :
+
+
+$as_echo "#define TABLE_WALK_DEBUG /**/" >>confdefs.h
+
+
 fi
 
 # Check whether --enable-dual-endian was given.

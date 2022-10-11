@@ -99,6 +99,9 @@
 /* Define if subproject MCPPBS_SPROJ_NORM is enabled */
 #undef RISCV_ENABLED
 
+/* Print information and error messages during table walk */
+#undef TABLE_WALK_DEBUG
+
 /* Enable support for running target in either endianness */
 #undef RISCV_ENABLE_DUAL_ENDIAN
 

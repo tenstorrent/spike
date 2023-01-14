@@ -357,7 +357,7 @@ int main(int argc, char** argv)
             /*default_dirty_enabled*/false,
             /*default_pmpregions=*/16,
 #ifdef EXPANDED_DRAM_ADDRESS_RANGE
-            /*default_mem_layout=*/parse_mem_layout("0x100000:8000000000"),
+            /*default_mem_layout=*/parse_mem_layout("0x100000:90000000000000000"),
 #else
             /*default_mem_layout=*/parse_mem_layout("2048"),
 #endif

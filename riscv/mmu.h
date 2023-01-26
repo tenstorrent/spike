@@ -467,24 +467,5 @@ inline vm_info decode_vm_info(int xlen, bool stage2, reg_t prv, reg_t satp)
   }
 }
 
-inline reg_t decanonicalize_va_if_used_as_pa(int xlen, bool stage2, reg_t va, reg_t satp)
-{
-    if(xlen < 64 || stage2)
-    {
-        return va;
-    }
-
-    reg_t mask = UINT64_MAX;
-
-    switch (get_field(satp, SATP64_MODE)) {
-      case SATP_MODE_OFF: return va;
-      case SATP_MODE_SV39: return va & (mask >> 25);
-      case SATP_MODE_SV48: return va & (mask >> 16);
-      case SATP_MODE_SV57: return va & (mask >> 7);
-      case SATP_MODE_SV64: return va;
-      default: abort();
-    }
-}
-
 
 #endif

@@ -459,7 +459,6 @@ reg_t mmu_t::walk(reg_t addr, access_type type, reg_t mode, bool virt, bool hlvx
   vm_info vm = decode_vm_info(proc->get_const_xlen(), false, mode, satp);
   if (vm.levels == 0)
   {
-    addr = decanonicalize_va_if_used_as_pa(proc->get_const_xlen(), false, addr, satp);
     return s2xlate(addr, addr & ((reg_t(2) << (proc->xlen-1))-1), type, type, virt, hlvx) & ~page_mask; // zero-extend from xlen
   }
 

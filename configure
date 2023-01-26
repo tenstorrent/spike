@@ -6047,6 +6047,19 @@ else
   as_fn_error $? "libpthread is required" "$LINENO" 5
 fi
 
+# Check whether --enable-expanded-dram-address-range given.
+if test "${enable_expanded_dram_address_range+set}" = set; then :
+  enableval=$enable_expanded_dram_address_range;
+fi
+
+if test "x$enable_expanded_dram_address_range" = "xyes"; then :
+
+
+$as_echo "#define EXPANDED_DRAM_ADDRESS_RANGE/**/" >>confdefs.h
+
+
+fi
+
 # Check whether --enable-table-walk-debug was given.
 if test "${enable_table_walk_debug+set}" = set; then :
   enableval=$enable_table_walk_debug;

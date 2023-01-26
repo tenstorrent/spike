@@ -99,6 +99,9 @@
 /* Define if subproject MCPPBS_SPROJ_NORM is enabled */
 #undef RISCV_ENABLED
 
+/* Enable expanded dram address range/ */
+#undef EXPANDED_DRAM_ADDRESS_RANGE
+
 /* Print information and error messages during table walk */
 #undef TABLE_WALK_DEBUG
 

@@ -239,6 +239,12 @@ static std::vector<mem_cfg_t> parse_mem_layout(const char* arg)
 
     const unsigned long long max_allowed_pa = (1ull << MAX_PADDR_BITS) - 1ull;
     assert(max_allowed_pa <= std::numeric_limits<reg_t>::max());
+
+#ifdef EXPANDED_DRAM_ADDRESS_RANGE
+    if (((size + base ) > max_allowed_pa) || ((size + base) < size))
+        size = 0xffffffffffffffull ^ 0xfffffffull;
+#endif
+
     mem_cfg_t mem_region(base, size);
     if (mem_region.get_inclusive_end() > max_allowed_pa) {
       int bits_required = 64 - clz(mem_region.get_inclusive_end());

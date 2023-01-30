@@ -717,6 +717,7 @@ with_varch
 with_target
 enable_dirty
 enable_table_walk_debug
+enable_expanded_dram_address_range
 enable_dual_endian
 '
       ac_precious_vars='build_alias
@@ -1364,6 +1365,8 @@ Optional Features:
                           Prints information and error messages during table walk
   --enable-dual-endian    Enable support for running target in either
                           endianness
+  --enable-expanded-dram-address-range
+                          Starts DRAM_BASE at 0x100000 and increases memory size to a large value
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]

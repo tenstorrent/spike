@@ -123,7 +123,6 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
     clint.reset(new clint_t(procs, CPU_HZ / INSNS_PER_RTC_TICK, cfg->real_time_clint()));
     bus.add_device(clint_base, clint.get());
   }
-#endif
 
   // pointer to wired interrupt controller
   abstract_interrupt_controller_t *intctrl = NULL;
@@ -147,6 +146,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
                                 ns16550_shift, ns16550_io_width));
     bus.add_device(ns16550_base, ns16550.get());
   }
+#endif
 
   //per core attribute
   int cpu_offset = 0, rc;

@@ -101,6 +101,8 @@ private:
 
   const char* get_symbol(uint64_t paddr);
 
+  bool is_tohost_nonzero();
+
   // presents a prompt for introspection into the simulation
   void interactive();
 

@@ -717,6 +717,7 @@ with_varch
 with_target
 enable_dirty
 enable_table_walk_debug
+enable_stop_immediately_if_tohost_nonzero
 enable_expanded_dram_address_range
 enable_dual_endian
 '
@@ -1363,6 +1364,8 @@ Optional Features:
                           Enable all optional subprojects
   --enable-table-walk-debug
                           Prints information and error messages during table walk
+  --enable-stop-immediately-if-tohost-nonzero
+                          Useful if immediately after the test writes to tohost, the environment requires termination
   --enable-dual-endian    Enable support for running target in either
                           endianness
   --enable-expanded-dram-address-range
@@ -6075,6 +6078,20 @@ $as_echo "#define TABLE_WALK_DEBUG /**/" >>confdefs.h
 
 
 fi
+
+# Check whether --enable-stop-immediately-if-tohost-nonzero was given.
+if test "${enable_top_immediately_if_tohost_nonzero+set}" = set; then :
+  enableval=$enable_stop_immediately_if_tohost_nonzero;
+fi
+
+if test "x$enable_stop_immediately_if_tohost_nonzero" = "xyes"; then :
+
+
+$as_echo "#define STOP_IMMEDIATELY_IF_TOHOST_NONZERO /**/" >>confdefs.h
+
+
+fi
+
 
 # Check whether --enable-dual-endian was given.
 if test "${enable_dual_endian+set}" = set; then :

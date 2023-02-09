@@ -388,6 +388,11 @@ char* sim_t::addr_to_mem(reg_t paddr) {
   return NULL;
 }
 
+bool sim_t::is_tohost_nonzero()
+{
+  return htif_t::is_tohost_nonzero();
+}
+
 const char* sim_t::get_symbol(uint64_t paddr)
 {
   return htif_t::get_symbol(paddr);

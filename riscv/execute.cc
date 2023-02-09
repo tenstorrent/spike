@@ -283,6 +283,12 @@ void processor_t::step(size_t n)
               throw max_instrs_exception_t();
           }
 
+
+#ifdef STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+          if(sim->is_tohost_nonzero())
+            exit(0);
+#endif
+
           advance_pc();
         }
       }
@@ -308,6 +314,11 @@ void processor_t::step(size_t n)
           {
               throw max_instrs_exception_t();
           }
+
+#ifdef STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+          if(sim->is_tohost_nonzero())
+            exit(0);
+#endif
 
           state.pc = pc;
         }

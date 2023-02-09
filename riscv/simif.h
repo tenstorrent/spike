@@ -21,6 +21,8 @@ public:
 
   virtual const char* get_symbol(uint64_t paddr) = 0;
 
+  virtual bool is_tohost_nonzero() = 0;
+
   virtual ~simif_t() = default;
 
 };

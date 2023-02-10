@@ -286,7 +286,12 @@ int htif_t::run()
 
 bool htif_t::is_tohost_nonzero()
 {
-  return (from_target(mem.read_uint64(tohost_addr)) != 0);
+  if (tohost_addr == 0) {
+    return false;
+  }
+  else {
+    return (from_target(mem.read_uint64(tohost_addr)) != 0);
+  }
 }
 
 bool htif_t::done()

@@ -88,6 +88,9 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --blocksz=<size>      Cache block size (B) for CMO operations(powers of 2) [default 64]\n");
   fprintf(stderr, "  --end-pc              Optionally terminate simulation after this pc is reached\n");
   fprintf(stderr, "  --max-instrs          Optionally terminate simulation after this number of instructions have been executed\n");
+#ifdef TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+  fprintf(stderr, "  --tt-tohost-nonzero-terminate Optionally terminate simulation if a nonzero value is written to the tohost address\n");
+#endif
 
   exit(exit_code);
 }
@@ -240,7 +243,7 @@ static std::vector<mem_cfg_t> parse_mem_layout(const char* arg)
     const unsigned long long max_allowed_pa = (1ull << MAX_PADDR_BITS) - 1ull;
     assert(max_allowed_pa <= std::numeric_limits<reg_t>::max());
 
-#ifdef EXPANDED_DRAM_ADDRESS_RANGE
+#ifdef TT_EXPANDED_DRAM_ADDRESS_RANGE
     if (((size + base ) > max_allowed_pa) || ((size + base) < size))
         size = 0xffffffffffffffull ^ 0xfffffffull;
 #endif
@@ -362,7 +365,7 @@ int main(int argc, char** argv)
             /*default_endianness*/endianness_little,
             /*default_dirty_enabled*/false,
             /*default_pmpregions=*/16,
-#ifdef EXPANDED_DRAM_ADDRESS_RANGE
+#ifdef TT_EXPANDED_DRAM_ADDRESS_RANGE
             /*default_mem_layout=*/parse_mem_layout("0x100000:90000000000000000"),
 #else
             /*default_mem_layout=*/parse_mem_layout("2048"),
@@ -504,6 +507,9 @@ int main(int argc, char** argv)
   });
   parser.option(0, "end-pc", 1, [&](const char* s){cfg.end_pc = strtoull(s, 0, 16);});
   parser.option(0, "max-instrs", 1, [&](const char* s){cfg.max_instrs = strtoull(s, 0, 10);});
+#ifdef TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+  parser.option(0, "tt-tohost-nonzero-terminate", 0, [&](const char UNUSED *s){cfg.tt_tohost_nonzero_terminate = true;});
+#endif
 
   auto argv1 = parser.parse(argv);
   std::vector<std::string> htif_args(argv1, (const char*const*)argv + argc);

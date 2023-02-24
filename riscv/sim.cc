@@ -65,7 +65,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   for (auto& x : mems)
     bus.add_device(x.first, x.second);
 
-#ifndef EXPANDED_DRAM_ADDRESS_RANGE
+#ifndef TT_EXPANDED_DRAM_ADDRESS_RANGE
   for (auto& x : plugin_devices)
     bus.add_device(x.first, x.second);
 
@@ -117,7 +117,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   // that's not bus-accessible), but it should handle the normal use cases. In
   // particular, the default device tree configuration that you get without
   // setting the dtb_file argument has one.
-#ifndef EXPANDED_DRAM_ADDRESS_RANGE
+#ifndef TT_EXPANDED_DRAM_ADDRESS_RANGE
   reg_t clint_base;
   if (fdt_parse_clint(fdt, &clint_base, "riscv,clint0") == 0) {
     clint.reset(new clint_t(procs, CPU_HZ / INSNS_PER_RTC_TICK, cfg->real_time_clint()));

@@ -100,13 +100,13 @@
 #undef RISCV_ENABLED
 
 /* Enable expanded dram address range/ */
-#undef EXPANDED_DRAM_ADDRESS_RANGE
+#undef TT_EXPANDED_DRAM_ADDRESS_RANGE
 
 /* Print information and error messages during table walk */
-#undef TABLE_WALK_DEBUG
+#undef TT_TABLE_WALK_DEBUG
 
 /* Stop simulation is tohost nonzero */
-#undef STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+#undef TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO
 
 /* Enable support for running target in either endianness */
 #undef RISCV_ENABLE_DUAL_ENDIAN

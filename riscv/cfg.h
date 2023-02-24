@@ -86,7 +86,8 @@ public:
       hartids(default_hartids),
       explicit_hartids(false),
       real_time_clint(default_real_time_clint),
-      trigger_count(default_trigger_count)
+      trigger_count(default_trigger_count),
+      tt_tohost_nonzero_terminate(false)
   {}
 
   cfg_arg_t<std::pair<reg_t, reg_t>> initrd_bounds;
@@ -106,6 +107,7 @@ public:
   bool                               explicit_hartids;
   cfg_arg_t<bool>                    real_time_clint;
   reg_t                              trigger_count;
+  bool                               tt_tohost_nonzero_terminate;
 
   size_t nprocs() const { return hartids().size(); }
 };

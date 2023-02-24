@@ -283,10 +283,12 @@ void processor_t::step(size_t n)
               throw max_instrs_exception_t();
           }
 
-
-#ifdef STOP_IMMEDIATELY_IF_TOHOST_NONZERO
-          if(sim->is_tohost_nonzero())
-            exit(0);
+#ifdef TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+          if(this->cfg->tt_tohost_nonzero_terminate == true)
+          {
+            if(sim->is_tohost_nonzero())
+                exit(0);
+          }
 #endif
 
           advance_pc();
@@ -315,9 +317,12 @@ void processor_t::step(size_t n)
               throw max_instrs_exception_t();
           }
 
-#ifdef STOP_IMMEDIATELY_IF_TOHOST_NONZERO
-          if(sim->is_tohost_nonzero())
-            exit(0);
+#ifdef TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+          if(this->cfg->tt_tohost_nonzero_terminate == true)
+          {
+            if(sim->is_tohost_nonzero())
+                exit(0);
+          }
 #endif
 
           state.pc = pc;

@@ -716,9 +716,9 @@ with_priv
 with_varch
 with_target
 enable_dirty
-tt_enable_table_walk_debug
-tt_stop_immediately_if_tohost_nonzero
-tt_enable_expanded_dram_address_range
+enable_tt_table_walk_debug
+enable_tt_stop_if_tohost_nonzero
+enable_tt_expanded_dram_address_range
 enable_dual_endian
 '
       ac_precious_vars='build_alias
@@ -1362,13 +1362,13 @@ Optional Features:
   --enable-stow           Enable stow-based install
   --enable-optional-subprojects
                           Enable all optional subprojects
-  --tt-enable-table-walk-debug
+  --enable-tt-table-walk-debug
                           Prints information and error messages during table walk
-  --tt-stop-immediately-if-tohost-nonzero
+  --enable-tt-stop-if-tohost-nonzero
                           Useful if immediately after the test writes to tohost, the environment requires termination
   --enable-dual-endian    Enable support for running target in either
                           endianness
-  --tt-enable-expanded-dram-address-range
+  --enable-tt-expanded-dram-address-range
                           Starts DRAM_BASE at 0x100000 and increases memory size to a large value
 
 Optional Packages:
@@ -6053,12 +6053,12 @@ else
   as_fn_error $? "libpthread is required" "$LINENO" 5
 fi
 
-# Check whether --tt-enable-expanded-dram-address-range given.
-if test "${tt_enable_expanded_dram_address_range+set}" = set; then :
-  enableval=$tt_enable_expanded_dram_address_range;
+# Check whether --enable-tt-expanded-dram-address-range given.
+if test "${enable_tt_expanded_dram_address_range+set}" = set; then :
+  enableval=$enable_tt_expanded_dram_address_range;
 fi
 
-if test "x$tt_enable_expanded_dram_address_range" = "xyes"; then :
+if test "x$enable_tt_expanded_dram_address_range" = "xyes"; then :
 
 
 $as_echo "#define TT_EXPANDED_DRAM_ADDRESS_RANGE/**/" >>confdefs.h
@@ -6066,12 +6066,12 @@ $as_echo "#define TT_EXPANDED_DRAM_ADDRESS_RANGE/**/" >>confdefs.h
 
 fi
 
-# Check whether --tt-enable-table-walk-debug was given.
-if test "${tt_enable_table_walk_debug+set}" = set; then :
-  enableval=$tt_enable_table_walk_debug;
+# Check whether --enable-tt-table-walk-debug was given.
+if test "${enable_tt_table_walk_debug+set}" = set; then :
+  enableval=$enable_tt_table_walk_debug;
 fi
 
-if test "x$tt_enable_table_walk_debug" = "xyes"; then :
+if test "x$enable_tt_table_walk_debug" = "xyes"; then :
 
 
 $as_echo "#define TT_TABLE_WALK_DEBUG /**/" >>confdefs.h
@@ -6079,12 +6079,12 @@ $as_echo "#define TT_TABLE_WALK_DEBUG /**/" >>confdefs.h
 
 fi
 
-# Check whether --tt-stop-immediately-if-tohost-nonzero was given.
-if test "${tt_stop_immediately_if_tohost_nonzero+set}" = set; then :
-  enableval=$tt_stop_immediately_if_tohost_nonzero;
+# Check whether --enable-tt-stop-if-tohost-nonzero was given.
+if test "${enable_tt_stop_if_tohost_nonzero+set}" = set; then :
+  enableval=$enable_tt_stop_if_tohost_nonzero;
 fi
 
-if test "x$tt_stop_immediately_if_tohost_nonzero" = "xyes"; then :
+if test "x$enable_tt_stop_if_tohost_nonzero" = "xyes"; then :
 
 
 $as_echo "#define TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO /**/" >>confdefs.h

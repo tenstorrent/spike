@@ -39,18 +39,18 @@ AC_SEARCH_LIBS([dlopen], [dl dld], [
 
 AC_CHECK_LIB(pthread, pthread_create, [], [AC_MSG_ERROR([libpthread is required])])
 
-AC_ARG_ENABLE([tt_enable_table_walk_debug], AS_HELP_STRING([--tt-enable-table-walk-debug], [Print information and error messages during table walk]))
-AS_IF([test "x$tt_enable_table_walk_debug" = "xyes"], [
+AC_ARG_ENABLE([enable_tt_table_walk_debug], AS_HELP_STRING([--enable-tt-table-walk-debug], [Print information and error messages during table walk]))
+AS_IF([test "x$enable_tt_table_walk_debug" = "xyes"], [
   AC_DEFINE([TT_TABLE_WALK_DEBUG],,[Print information and error messages during table walk])
 ])
 
-AC_ARG_ENABLE([tt_enable_expanded_dram_address_range], AS_HELP_STRING([--tt-enable-expanded-dram-address-range], [Starts DRAM_BASE at 0x100000 and increases memory size to a large value]))
-AS_IF([test "x$tt_enable_expanded_dram_address_range" = "xyes"], [
+AC_ARG_ENABLE([enable_tt_expanded_dram_address_range], AS_HELP_STRING([--enable-tt-expanded-dram-address-range], [Starts DRAM_BASE at 0x100000 and increases memory size to a large value]))
+AS_IF([test "x$enable_tt_expanded_dram_address_range" = "xyes"], [
   AC_DEFINE([TT_ENABLE_EXPANDED_DRAM_ADDRESS_RANGE],,[Starts DRAM_BASE at 0x100000 and increases memory size to a large value])
 ])
 
-AC_ARG_ENABLE([tt_stop_immediately_if_tohost_nonzero], AS_HELP_STRING([--tt-stop-immediately-if-tohost-nonzero], [Useful if immediately after the test writes to tohost, the environment requires termination]))
-AS_IF([test "x$tt_stop_immediately_if_tohost_nonzero" = "xyes"], [
+AC_ARG_ENABLE([enable_tt_stop_if_tohost_nonzero], AS_HELP_STRING([--enable-tt-stop-if-tohost-nonzero], [Useful if immediately after the test writes to tohost, the environment requires termination]))
+AS_IF([test "x$enable_tt_stop_if_tohost_nonzero" = "xyes"], [
   AC_DEFINE([TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO],,[Useful if immediately after the test writes to tohost, the environment requires termination])
 ])
 

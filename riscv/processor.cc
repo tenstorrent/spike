@@ -722,6 +722,8 @@ void processor_t::set_privilege(reg_t prv)
 
 const char* processor_t::get_privilege_string()
 {
+  if (state.debug_mode)
+    return "D";
   if (state.v) {
     switch (state.prv) {
     case 0x0: return "VU";
@@ -883,7 +885,7 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
   }
 }
 
-void processor_t::take_trigger_action(triggers::action_t action, reg_t breakpoint_tval, reg_t epc)
+void processor_t::take_trigger_action(triggers::action_t action, reg_t breakpoint_tval, reg_t epc, bool virt)
 {
   if (debug) {
     std::stringstream s; // first put everything in a string, later send it to output
@@ -897,7 +899,7 @@ void processor_t::take_trigger_action(triggers::action_t action, reg_t breakpoin
       enter_debug_mode(DCSR_CAUSE_HWBP);
       break;
     case triggers::ACTION_DEBUG_EXCEPTION: {
-      trap_breakpoint trap(state.v, breakpoint_tval);
+      trap_breakpoint trap(virt, breakpoint_tval);
       take_trap(trap, epc);
       break;
     }

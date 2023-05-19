@@ -54,12 +54,13 @@ struct match_result_t {
 class matched_t
 {
   public:
-    matched_t(triggers::operation_t operation, reg_t address, action_t action) :
-      operation(operation), address(address), action(action) {}
+    matched_t(triggers::operation_t operation, reg_t address, action_t action, bool gva) :
+      operation(operation), address(address), action(action), gva(gva) {}
 
     triggers::operation_t operation;
     reg_t address;
     action_t action;
+    bool gva;
 };
 
 class trigger_t {
@@ -79,14 +80,18 @@ public:
   virtual bool get_store() const { return false; }
   virtual bool get_load() const { return false; }
   virtual action_t get_action() const { return ACTION_DEBUG_EXCEPTION; }
+  virtual bool icount_check_needed() const { return false; }
+  virtual void stash_read_values() {}
 
   virtual std::optional<match_result_t> detect_memory_access_match(processor_t UNUSED * const proc,
       operation_t UNUSED operation, reg_t UNUSED address, std::optional<reg_t> UNUSED data) noexcept { return std::nullopt; }
+  virtual std::optional<match_result_t> detect_icount_match(processor_t UNUSED * const proc) { return std::nullopt; }
   virtual std::optional<match_result_t> detect_trap_match(processor_t UNUSED * const proc, const trap_t UNUSED & t) noexcept { return std::nullopt; }
 
 protected:
   static action_t legalize_action(reg_t val, reg_t action_mask, reg_t dmode_mask) noexcept;
   bool common_match(processor_t * const proc) const noexcept;
+  bool allow_action(const state_t * const state) const;
   reg_t tdata2;
 
   bool vs = false;
@@ -233,6 +238,26 @@ public:
   virtual void tdata1_write(processor_t * const proc, const reg_t val, const bool allow_chain) noexcept override;
 };
 
+class icount_t : public trigger_t {
+public:
+  virtual reg_t tdata1_read(const processor_t * const proc) const noexcept override;
+  virtual void tdata1_write(processor_t * const proc, const reg_t val, const bool allow_chain) noexcept override;
+
+  bool get_dmode() const override { return dmode; }
+  virtual action_t get_action() const override { return action; }
+  virtual bool icount_check_needed() const override { return count > 0 || pending; }
+  virtual void stash_read_values() override;
+
+  virtual std::optional<match_result_t> detect_icount_match(processor_t * const proc) noexcept override;
+
+private:
+  bool dmode = false;
+  bool hit = false;
+  unsigned count = 1, count_read_value = 1;
+  bool pending = false, pending_read_value = false;
+  action_t action = (action_t)0;
+};
+
 class module_t {
 public:
   module_t(unsigned count);
@@ -249,6 +274,7 @@ public:
   unsigned count() const { return triggers.size(); }
 
   std::optional<match_result_t> detect_memory_access_match(operation_t operation, reg_t address, std::optional<reg_t> data) noexcept;
+  std::optional<match_result_t> detect_icount_match() noexcept;
   std::optional<match_result_t> detect_trap_match(const trap_t& t) noexcept;
 
   processor_t *proc;

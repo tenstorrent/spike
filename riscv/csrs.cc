@@ -516,6 +516,24 @@ reg_t mstatus_csr_t::compute_mstatus_initial_value() const noexcept {
          | 0;  // initial value for mstatus
 }
 
+// implement class mnstatus_csr_t
+mnstatus_csr_t::mnstatus_csr_t(processor_t* const proc, const reg_t addr):
+  basic_csr_t(proc, addr, 0) {
+}
+
+bool mnstatus_csr_t::unlogged_write(const reg_t val) noexcept {
+  // NMIE can be set but not cleared
+  const reg_t mask = (~read() & MNSTATUS_NMIE)
+                   | (proc->extension_enabled('H') ? MNSTATUS_MNPV : 0)
+                   | MNSTATUS_MNPP;
+
+  const reg_t requested_mnpp = proc->legalize_privilege(get_field(val, MNSTATUS_MNPP));
+  const reg_t adjusted_val = set_field(val, MNSTATUS_MNPP, requested_mnpp);
+  const reg_t new_mnstatus = (read() & ~mask) | (adjusted_val & mask);
+
+  return basic_csr_t::unlogged_write(new_mnstatus);
+}
+
 // implement class rv32_low_csr_t
 rv32_low_csr_t::rv32_low_csr_t(processor_t* const proc, const reg_t addr, csr_t_p orig):
   csr_t(proc, addr),
@@ -601,12 +619,13 @@ bool sstatus_csr_t::enabled(const reg_t which) {
 misa_csr_t::misa_csr_t(processor_t* const proc, const reg_t addr, const reg_t max_isa):
   basic_csr_t(proc, addr, max_isa),
   max_isa(max_isa),
-  write_mask(max_isa & (0  // allow MAFDQHV bits in MISA to be modified
+  write_mask(max_isa & (0  // allow MAFDQCHV bits in MISA to be modified
                         | (1L << ('M' - 'A'))
                         | (1L << ('A' - 'A'))
                         | (1L << ('F' - 'A'))
                         | (1L << ('D' - 'A'))
                         | (1L << ('Q' - 'A'))
+                        | (1L << ('C' - 'A'))
                         | (1L << ('H' - 'A'))
                         | (1L << ('V' - 'A'))
                         )
@@ -618,15 +637,31 @@ reg_t misa_csr_t::dependency(const reg_t val, const char feature, const char dep
 }
 
 bool misa_csr_t::unlogged_write(const reg_t val) noexcept {
+  const reg_t old_misa = read();
+
+  // the write is ignored if increasing IALIGN would misalign the PC
+  if (!(val & (1L << ('C' - 'A'))) && (old_misa & (1L << ('C' - 'A'))) && (state->pc & 2))
+    return false;
+
   reg_t adjusted_val = val;
   adjusted_val = dependency(adjusted_val, 'D', 'F');
   adjusted_val = dependency(adjusted_val, 'Q', 'D');
   adjusted_val = dependency(adjusted_val, 'V', 'D');
 
-  const reg_t old_misa = read();
   const bool prev_h = old_misa & (1L << ('H' - 'A'));
   const reg_t new_misa = (adjusted_val & write_mask) | (old_misa & ~write_mask);
   const bool new_h = new_misa & (1L << ('H' - 'A'));
+
+  proc->set_extension_enable(EXT_ZCA, (new_misa & (1L << ('C' - 'A'))) || !proc->get_isa().extension_enabled('C'));
+  proc->set_extension_enable(EXT_ZCF, (new_misa & (1L << ('F' - 'A'))) && proc->extension_enabled(EXT_ZCA));
+  proc->set_extension_enable(EXT_ZCD, (new_misa & (1L << ('D' - 'A'))) && proc->extension_enabled(EXT_ZCA));
+  proc->set_extension_enable(EXT_ZCB, proc->extension_enabled(EXT_ZCA));
+  proc->set_extension_enable(EXT_ZCMP, proc->extension_enabled(EXT_ZCA));
+  proc->set_extension_enable(EXT_ZCMT, proc->extension_enabled(EXT_ZCA));
+  proc->set_extension_enable(EXT_ZFH, new_misa & (1L << ('F' - 'A')));
+  proc->set_extension_enable(EXT_ZFHMIN, new_misa & (1L << ('F' - 'A')));
+  proc->set_extension_enable(EXT_ZVFH, (new_misa & (1L << ('V' - 'A'))) && proc->extension_enabled(EXT_ZFHMIN));
+  proc->set_extension_enable(EXT_ZVFHMIN, new_misa & (1L << ('V' - 'A')));
 
   // update the hypervisor-only bits in MEDELEG and other CSRs
   if (!new_h && prev_h) {
@@ -637,7 +672,9 @@ bool misa_csr_t::unlogged_write(const reg_t val) noexcept {
       | (1 << CAUSE_VIRTUAL_INSTRUCTION)
       | (1 << CAUSE_STORE_GUEST_PAGE_FAULT)
       ;
+
     state->medeleg->write(state->medeleg->read() & ~hypervisor_exceptions);
+    if (state->mnstatus) state->mnstatus->write(state->mnstatus->read() & ~MNSTATUS_MNPV);
     const reg_t new_mstatus = state->mstatus->read() & ~(MSTATUS_GVA | MSTATUS_MPV);
     state->mstatus->write(new_mstatus);
     if (state->mstatush) state->mstatush->write(new_mstatus >> 32);  // log mstatush change
@@ -1508,6 +1545,9 @@ jvt_csr_t::jvt_csr_t(processor_t* const proc, const reg_t addr, const reg_t init
 
 void jvt_csr_t::verify_permissions(insn_t insn, bool write) const {
   basic_csr_t::verify_permissions(insn, write);
+
+  if (!proc->extension_enabled(EXT_ZCMT))
+    throw trap_illegal_instruction(insn.bits());
 
   if (proc->extension_enabled(EXT_SMSTATEEN)) {
     if ((state->prv < PRV_M) && !(state->mstateen[0]->read() & SSTATEEN0_JVT))

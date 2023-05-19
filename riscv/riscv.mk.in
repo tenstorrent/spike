@@ -20,12 +20,15 @@ riscv_install_hdrs = \
 	cfg.h \
 	common.h \
 	csrs.h \
+	debug_defines.h \
 	debug_module.h \
 	debug_rom_defines.h \
 	decode.h \
 	devices.h \
+	disasm.h \
 	encoding.h \
 	entropy_source.h \
+	extension.h \
 	isa_parser.h \
 	log_file.h \
 	memtracer.h \
@@ -33,6 +36,7 @@ riscv_install_hdrs = \
 	mmu.h \
 	platform.h \
 	processor.h \
+	rocc.h \
 	sim.h \
 	simif.h \
 	trap.h \
@@ -236,6 +240,15 @@ riscv_insn_ext_f = \
 	fsub_s \
 	fsw \
 
+riscv_insn_ext_f_zfa= \
+	fli_s \
+	fmaxm_s \
+	fminm_s \
+	fround_s \
+	froundnx_s \
+	fleq_s \
+	fltq_s
+
 riscv_insn_ext_d = \
 	fadd_d \
 	fclass_d \
@@ -270,6 +283,18 @@ riscv_insn_ext_d = \
 	fsgnjx_d \
 	fsqrt_d \
 	fsub_d \
+
+riscv_insn_ext_d_zfa = \
+	fli_d \
+	fmaxm_d \
+	fminm_d \
+	fround_d \
+	froundnx_d \
+	fmvh_x_d \
+	fmvp_d_x \
+	fcvtmod_w_d \
+	fleq_d \
+	fltq_d
 
 riscv_insn_ext_zfh = \
 	fadd_h \
@@ -309,6 +334,15 @@ riscv_insn_ext_zfh = \
 	fsqrt_h \
 	fsub_h \
 
+riscv_insn_ext_zfh_zfa = \
+	fli_h \
+	fmaxm_h \
+	fminm_h \
+	fround_h \
+	froundnx_h \
+	fleq_h \
+	fltq_h
+
 riscv_insn_ext_q = \
 	fadd_q \
 	fclass_q \
@@ -341,6 +375,17 @@ riscv_insn_ext_q = \
 	fsq \
 	fsqrt_q \
 	fsub_q \
+
+riscv_insn_ext_q_zfa = \
+	fli_q \
+	fmaxm_q \
+	fminm_q \
+	fround_q \
+	froundnx_q \
+	fmvh_x_q \
+	fmvp_q_x \
+	fleq_q \
+	fltq_q
 
 riscv_insn_ext_b = \
 	add_uw \
@@ -1262,6 +1307,9 @@ riscv_insn_priv = \
 	sret \
 	wfi \
 
+riscv_insn_smrnmi = \
+	mnret \
+
 riscv_insn_svinval = \
 	sfence_w_inval \
 	sfence_inval_ir \
@@ -1305,15 +1353,23 @@ riscv_insn_ext_cmo = \
 	cbo_inval \
 	cbo_zero \
 
+riscv_insn_ext_zicond = \
+        czero_eqz \
+        czero_nez \
+
 riscv_insn_list = \
 	$(riscv_insn_ext_a) \
 	$(riscv_insn_ext_c) \
 	$(riscv_insn_ext_i) \
 	$(riscv_insn_ext_m) \
 	$(riscv_insn_ext_f) \
+	$(riscv_insn_ext_f_zfa) \
 	$(riscv_insn_ext_d) \
+	$(riscv_insn_ext_d_zfa) \
 	$(riscv_insn_ext_zfh) \
+	$(riscv_insn_ext_zfh_zfa) \
 	$(riscv_insn_ext_q) \
+	$(riscv_insn_ext_q_zfa) \
 	$(riscv_insn_ext_b) \
 	$(riscv_insn_ext_k) \
 	$(if $(HAVE_INT128),$(riscv_insn_ext_v),) \
@@ -1322,7 +1378,9 @@ riscv_insn_list = \
 	$(riscv_insn_ext_p) \
 	$(riscv_insn_priv) \
 	$(riscv_insn_svinval) \
+	$(riscv_insn_smrnmi) \
 	$(riscv_insn_ext_cmo) \
+	$(riscv_insn_ext_zicond) \
 
 riscv_gen_srcs = $(addsuffix .cc,$(riscv_insn_list))
 

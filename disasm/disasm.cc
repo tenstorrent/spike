@@ -1,6 +1,7 @@
 // See LICENSE for license details.
 
 #include "disasm.h"
+#include "decode_macros.h"
 #include <cassert>
 #include <string>
 #include <vector>
@@ -2108,10 +2109,8 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
       DEFINE_RTYPE(smdrs32);
       DEFINE_RTYPE(smxds32);
       DEFINE_PI5TYPE(sraiw_u);
-      DEFINE_RTYPE(pkbb32);
       DEFINE_RTYPE(pkbt32);
       DEFINE_RTYPE(pktb32);
-      DEFINE_RTYPE(pktt32);
     }
   }
 

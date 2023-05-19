@@ -41,17 +41,21 @@ typedef enum {
   EXT_ZVFHMIN,
   EXT_SMEPMP,
   EXT_SMSTATEEN,
+  EXT_SMRNMI,
   EXT_SSCOFPMF,
+  EXT_SVADU,
   EXT_SVNAPOT,
   EXT_SVPBMT,
   EXT_SVINVAL,
   EXT_ZDINX,
+  EXT_ZFA,
   EXT_ZFINX,
   EXT_ZHINX,
   EXT_ZHINXMIN,
   EXT_ZICBOM,
   EXT_ZICBOZ,
   EXT_ZICNTR,
+  EXT_ZICOND,
   EXT_ZIHPM,
   EXT_XZBP,
   EXT_XZBS,
@@ -89,6 +93,9 @@ public:
   bool extension_enabled(isa_extension_t ext) const {
     return extension_table[ext];
   }
+
+  std::bitset<NUM_ISA_EXTENSIONS> get_extension_table() const { return extension_table; }
+
   const std::unordered_map<std::string, extension_t*> &
   get_extensions() const { return extensions; }
 

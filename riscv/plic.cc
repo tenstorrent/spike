@@ -1,6 +1,7 @@
 #include <sys/time.h>
 #include "devices.h"
 #include "processor.h"
+#include "simif.h"
 
 #define PLIC_MAX_CONTEXTS 15872
 
@@ -47,6 +48,9 @@
 #define PRIORITY_BASE           0
 #define PRIORITY_PER_ID         4
 
+/* Each interrupt source has a pending bit associated with it. */
+#define PENDING_BASE            0x1000
+
 /*
  * Each hart context has a vector of interupt enable bits associated with it.
  * There's one bit for each interrupt source.
@@ -66,32 +70,17 @@
 
 #define REG_SIZE                0x1000000
 
-plic_t::plic_t(std::vector<processor_t*>& procs, bool smode, uint32_t ndev)
-  : procs(procs), contexts(procs.size() * (smode ? 2 : 1))
+plic_t::plic_t(simif_t* sim, uint32_t ndev)
+  : num_ids(ndev + 1), num_ids_word(((ndev + 1) + (32 - 1)) / 32),
+  max_prio((1UL << PLIC_PRIO_BITS) - 1), priority{}, level{}
 {
-  size_t contexts_per_hart = smode ? 2 : 1;
+  // PLIC contexts are contiguous in memory even if harts are discontiguous.
+  for (const auto& [hart_id, hart] : sim->get_harts()) {
+    contexts.push_back(plic_context_t(hart, true));
 
-  num_ids = ndev + 1;
-  num_ids_word = num_ids / 32;
-  if ((num_ids_word * 32) < num_ids)
-    num_ids_word++;
-  max_prio = (1UL << PLIC_PRIO_BITS) - 1;
-  memset(priority, 0, sizeof(priority));
-  memset(level, 0, sizeof(level));
-
-  for (size_t i = 0; i < contexts.size(); i++) {
-    plic_context_t* c = &contexts[i];
-    c->num = i;
-    c->proc = procs[i / contexts_per_hart];
-    if (smode) {
-      c->mmode = (i % contexts_per_hart == 0);
-    } else {
-      c->mmode = true;
+    if (hart->extension_enabled_const('S')) {
+      contexts.push_back(plic_context_t(hart, false));
     }
-    memset(&c->enable, 0, sizeof(c->enable));
-    memset(&c->pending, 0, sizeof(c->pending));
-    memset(&c->pending_priority, 0, sizeof(c->pending_priority));
-    memset(&c->claimed, 0, sizeof(c->claimed));
   }
 }
 
@@ -170,6 +159,21 @@ bool plic_t::priority_write(reg_t offset, uint32_t val)
   return true;
 }
 
+bool plic_t::pending_read(reg_t offset, uint32_t *val)
+{
+  uint32_t id_word = (offset >> 2);
+
+  if (id_word < num_ids_word) {
+    *val = 0;
+    for (auto context: contexts) {
+        *val |= context.pending[id_word];
+    }
+  } else
+    *val = 0;
+
+  return true;
+}
+
 bool plic_t::context_enable_read(const plic_context_t *c,
                                  reg_t offset, uint32_t *val)
 {
@@ -242,10 +246,12 @@ bool plic_t::context_write(plic_context_t *c,
   switch (offset) {
     case CONTEXT_THRESHOLD:
       val &= ((1 << PLIC_PRIO_BITS) - 1);
-      if (val <= max_prio)
+      if (val <= max_prio) {
         c->priority_threshold = val;
-      else
         update = true;
+      } else {
+        ret = false;
+      }
       break;
     case CONTEXT_CLAIM: {
       uint32_t id_word = val / 32;
@@ -259,7 +265,6 @@ bool plic_t::context_write(plic_context_t *c,
     }
     default:
       ret = false;
-      update = true;
       break;
   };
 
@@ -326,8 +331,10 @@ bool plic_t::load(reg_t addr, size_t len, uint8_t* bytes)
       return false;
   }
 
-  if (PRIORITY_BASE <= addr && addr < ENABLE_BASE) {
+  if (PRIORITY_BASE <= addr && addr < PENDING_BASE) {
     ret = priority_read(addr, &val);
+  } else if (PENDING_BASE <= addr && addr < ENABLE_BASE) {
+    ret = pending_read(addr - PENDING_BASE, &val);
   } else if (ENABLE_BASE <= addr && addr < CONTEXT_BASE) {
     uint32_t cntx = (addr - ENABLE_BASE) / ENABLE_PER_HART;
     addr -= cntx * ENABLE_PER_HART + ENABLE_BASE;
@@ -342,9 +349,7 @@ bool plic_t::load(reg_t addr, size_t len, uint8_t* bytes)
     }
   }
 
-  if (ret) {
-    memcpy(bytes, (uint8_t *)&val, len);
-  }
+  read_little_endian_reg(val, addr, len, bytes);
 
   return ret;
 }
@@ -352,7 +357,7 @@ bool plic_t::load(reg_t addr, size_t len, uint8_t* bytes)
 bool plic_t::store(reg_t addr, size_t len, const uint8_t* bytes)
 {
   bool ret = false;
-  uint32_t val;
+  uint32_t val = 0;
 
   switch (len) {
     case 4:
@@ -365,7 +370,7 @@ bool plic_t::store(reg_t addr, size_t len, const uint8_t* bytes)
       return false;
   }
 
-  memcpy((uint8_t *)&val, bytes, len);
+  write_little_endian_reg(&val, addr, len, bytes);
 
   if (PRIORITY_BASE <= addr && addr < ENABLE_BASE) {
     ret = priority_write(addr, val);

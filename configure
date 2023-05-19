@@ -715,7 +715,6 @@ with_isa
 with_priv
 with_varch
 with_target
-enable_dirty
 enable_tt_table_walk_debug
 enable_tt_stop_if_tohost_nonzero
 enable_tt_expanded_dram_address_range
@@ -1391,7 +1390,8 @@ Optional Packages:
                           use the Regex library from boost - it is possible to
                           specify a certain library for the linker e.g.
                           --with-boost-regex=boost_regex-gcc-mt-d-1_33_1
-  --with-isa=RV64IMAFDC   Sets the default RISC-V ISA
+  --with-isa=RV64IMAFDC_zicntr_zihpm
+                          Sets the default RISC-V ISA
   --with-priv=MSU         Sets the default RISC-V privilege modes supported
   --with-varch=vlen:128,elen:64
                           Sets the default vector config
@@ -5886,7 +5886,7 @@ _ACEOF
 else
 
 cat >>confdefs.h <<_ACEOF
-#define DEFAULT_ISA "RV64IMAFDC"
+#define DEFAULT_ISA "RV64IMAFDC_zicntr_zihpm"
 _ACEOF
 
 fi

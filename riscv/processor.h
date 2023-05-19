@@ -101,6 +101,8 @@ struct state_t
   csr_t_p mideleg;
   csr_t_p mcounteren;
   csr_t_p mevent[N_HPMCOUNTERS];
+  csr_t_p mnstatus;
+  csr_t_p mnepc;
   csr_t_p scounteren;
   csr_t_p sepc;
   csr_t_p stval;
@@ -225,7 +227,7 @@ public:
     if (ext >= 'A' && ext <= 'Z')
       return state.misa->extension_enabled(ext);
     else
-      return isa->extension_enabled(ext);
+      return extension_enable_table[ext];
   }
   // Is this extension enabled? and abort if this extension can
   // possibly be disabled dynamically. Useful for documenting
@@ -234,10 +236,18 @@ public:
     return extension_enabled_const(isa_extension_t(ext));
   }
   bool extension_enabled_const(isa_extension_t ext) const {
-    if (ext >= 'A' && ext <= 'Z')
+    if (ext >= 'A' && ext <= 'Z') {
       return state.misa->extension_enabled_const(ext);
-    else
-      return isa->extension_enabled(ext);  // assume this can't change
+    } else {
+      assert(!extension_dynamic[ext]);
+      extension_assumed_const[ext] = true;
+      return extension_enabled(ext);
+    }
+  }
+  void set_extension_enable(unsigned char ext, bool enable) {
+    assert(!extension_assumed_const[ext]);
+    extension_dynamic[ext] = true;
+    extension_enable_table[ext] = enable && isa->extension_enabled(ext);
   }
   void set_impl(uint8_t impl, bool val) { impl_table[impl] = val; }
   bool supports_impl(uint8_t impl) const {
@@ -288,6 +298,9 @@ public:
 
   const char* get_symbol(uint64_t addr);
 
+  void clear_waiting_for_interrupt() { in_wfi = false; };
+  bool is_waiting_for_interrupt() { return in_wfi; };
+
 private:
   const isa_parser_t * const isa;
   const cfg_t * const cfg;
@@ -308,7 +321,13 @@ private:
   std::ostream sout_; // needed for socket command interface -s, also used for -d and -l, but not for --log
   bool halt_on_reset;
   bool in_wfi;
+  bool check_triggers_icount;
   std::vector<bool> impl_table;
+
+  // Note: does not include single-letter extensions in misa
+  std::bitset<NUM_ISA_EXTENSIONS> extension_enable_table;
+  std::bitset<NUM_ISA_EXTENSIONS> extension_dynamic;
+  mutable std::bitset<NUM_ISA_EXTENSIONS> extension_assumed_const;
 
   std::vector<insn_desc_t> instructions;
   std::unordered_map<reg_t,uint64_t> pc_histogram;
@@ -319,7 +338,7 @@ private:
   void take_pending_interrupt() { take_interrupt(state.mip->read() & state.mie->read()); }
   void take_interrupt(reg_t mask); // take first enabled interrupt in mask
   void take_trap(trap_t& t, reg_t epc); // take an exception
-  void take_trigger_action(triggers::action_t action, reg_t breakpoint_tval, reg_t epc);
+  void take_trigger_action(triggers::action_t action, reg_t breakpoint_tval, reg_t epc, bool virt);
   void disasm(insn_t insn); // disassemble and print an instruction
   int paddr_bits();
 

@@ -39,7 +39,7 @@ Spike supports the following RISC-V ISA features:
   - Svinval extension, v1.0
   - Sdext extension, v1.0-STABLE
   - Sdtrig extension, v1.0-STABLE
-    - 4 triggers support type=2 (mcontrol), type=4 (itrigger), type=5 (etrigger), type=6 (mcontrol6), and type=15 (disabled)
+    - 4 triggers support type={2, 3, 4, 5, 6, 15} (mcontrol, icount, itrigger, etrigger, mcontrol6, disabled)
   - Smepmp extension v1.0
   - Smstateen extension, v1.0
   - Sscofpmf v0.5.2
@@ -251,12 +251,12 @@ Listening for remote bitbang connection on port 9824.
 In a separate shell run OpenOCD with the appropriate configuration file:
 ```
 $ cat spike.cfg 
-interface remote_bitbang
-remote_bitbang_host localhost
-remote_bitbang_port 9824
+adapter driver remote_bitbang
+remote_bitbang host localhost
+remote_bitbang port 9824
 
 set _CHIPNAME riscv
-jtag newtap $_CHIPNAME cpu -irlen 5 -expected-id 0x10e31913
+jtag newtap $_CHIPNAME cpu -irlen 5 -expected-id 0xdeadbeef
 
 set _TARGETNAME $_CHIPNAME.cpu
 target create $_TARGETNAME riscv -chain-position $_TARGETNAME

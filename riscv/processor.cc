@@ -5,6 +5,7 @@
 #include "extension.h"
 #include "common.h"
 #include "config.h"
+#include "decode_macros.h"
 #include "simif.h"
 #include "mmu.h"
 #include "disasm.h"
@@ -34,8 +35,9 @@ processor_t::processor_t(const isa_parser_t *isa, const cfg_t *cfg,
   : debug(false), halt_request(HR_NONE), isa(isa), cfg(cfg), sim(sim), id(id), xlen(0),
   histogram_enabled(false), log_commits_enabled(false),
   log_file(log_file), sout_(sout_.rdbuf()), halt_on_reset(halt_on_reset),
-  in_wfi(false),
-  impl_table(256, false), last_pc(1), executions(1), TM(cfg->trigger_count), step_count(0)
+  in_wfi(false), check_triggers_icount(false),
+  impl_table(256, false), extension_enable_table(isa->get_extension_table()),
+  last_pc(1), executions(1), TM(cfg->trigger_count), step_count(0)
 {
   VU.p = this;
   TM.proc = this;
@@ -57,12 +59,12 @@ processor_t::processor_t(const isa_parser_t *isa, const cfg_t *cfg,
     register_extension(e.second);
 
   set_pmp_granularity(1 << PMP_SHIFT);
-  set_pmp_num(state.max_pmp);
+  set_pmp_num(cfg->pmpregions);
 
   if (isa->get_max_xlen() == 32)
     set_mmu_capability(IMPL_MMU_SV32);
   else if (isa->get_max_xlen() == 64)
-    set_mmu_capability(IMPL_MMU_SV48);
+    set_mmu_capability(IMPL_MMU_SV57);
 
   set_impl(IMPL_MMU_ASID, true);
   set_impl(IMPL_MMU_VMID, true);
@@ -245,7 +247,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
     auto mcounter = std::make_shared<const_csr_t>(proc, which_mcounter, 0);
     csrmap[which_mcounter] = mcounter;
 
-    if (proc->extension_enabled_const(EXT_ZICNTR) && proc->extension_enabled_const(EXT_ZIHPM)) {
+    if (proc->extension_enabled_const(EXT_ZIHPM)) {
       auto counter = std::make_shared<counter_proxy_csr_t>(proc, which_counter, mcounter);
       csrmap[which_counter] = counter;
     }
@@ -253,7 +255,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
       csrmap[which_mevent] = std::make_shared<rv32_low_csr_t>(proc, which_mevent, mevent[i - 3]);;
       auto mcounterh = std::make_shared<const_csr_t>(proc, which_mcounterh, 0);
       csrmap[which_mcounterh] = mcounterh;
-      if (proc->extension_enabled_const(EXT_ZICNTR) && proc->extension_enabled_const(EXT_ZIHPM)) {
+      if (proc->extension_enabled_const(EXT_ZIHPM)) {
         auto counterh = std::make_shared<counter_proxy_csr_t>(proc, which_counterh, mcounterh);
         csrmap[which_counterh] = counterh;
       }
@@ -321,7 +323,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
 
   csrmap[CSR_MEDELEG] = medeleg = std::make_shared<medeleg_csr_t>(proc, CSR_MEDELEG);
   csrmap[CSR_MIDELEG] = mideleg = std::make_shared<mideleg_csr_t>(proc, CSR_MIDELEG);
-  const reg_t counteren_mask = 0xffffffffULL;
+  const reg_t counteren_mask = (proc->extension_enabled_const(EXT_ZICNTR) ? 0x7UL : 0x0) | (proc->extension_enabled_const(EXT_ZIHPM) ? 0xfffffff8ULL : 0x0);
   mcounteren = std::make_shared<masked_csr_t>(proc, CSR_MCOUNTEREN, counteren_mask, 0);
   if (proc->extension_enabled_const('U')) csrmap[CSR_MCOUNTEREN] = mcounteren;
   csrmap[CSR_SCOUNTEREN] = scounteren = std::make_shared<masked_csr_t>(proc, CSR_SCOUNTEREN, counteren_mask, 0);
@@ -434,6 +436,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
   if (proc->extension_enabled_const('U')) {
     const reg_t menvcfg_mask = (proc->extension_enabled(EXT_ZICBOM) ? MENVCFG_CBCFE | MENVCFG_CBIE : 0) |
                               (proc->extension_enabled(EXT_ZICBOZ) ? MENVCFG_CBZE : 0) |
+                              (proc->extension_enabled(EXT_SVADU) ? MENVCFG_HADE: 0) |
                               (proc->extension_enabled(EXT_SVPBMT) ? MENVCFG_PBMTE : 0) |
                               (proc->extension_enabled(EXT_SSTC) ? MENVCFG_STCE : 0);
     const reg_t menvcfg_init = (proc->extension_enabled(EXT_SVPBMT) ? MENVCFG_PBMTE : 0);
@@ -449,6 +452,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
     csrmap[CSR_SENVCFG] = senvcfg = std::make_shared<senvcfg_csr_t>(proc, CSR_SENVCFG, senvcfg_mask, 0);
     const reg_t henvcfg_mask = (proc->extension_enabled(EXT_ZICBOM) ? HENVCFG_CBCFE | HENVCFG_CBIE : 0) |
                               (proc->extension_enabled(EXT_ZICBOZ) ? HENVCFG_CBZE : 0) |
+                              (proc->extension_enabled(EXT_SVADU) ? HENVCFG_HADE: 0) |
                               (proc->extension_enabled(EXT_SVPBMT) ? HENVCFG_PBMTE : 0) |
                               (proc->extension_enabled(EXT_SSTC) ? HENVCFG_STCE : 0);
     const reg_t henvcfg_init = (proc->extension_enabled(EXT_SVPBMT) ? HENVCFG_PBMTE : 0);
@@ -490,6 +494,13 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
     }
   }
 
+  if (proc->extension_enabled_const(EXT_SMRNMI)) {
+    csrmap[CSR_MNSCRATCH] = std::make_shared<basic_csr_t>(proc, CSR_MNSCRATCH, 0);
+    csrmap[CSR_MNEPC] = mnepc = std::make_shared<epc_csr_t>(proc, CSR_MNEPC);
+    csrmap[CSR_MNCAUSE] = std::make_shared<const_csr_t>(proc, CSR_MNCAUSE, (reg_t)1 << (xlen - 1));
+    csrmap[CSR_MNSTATUS] = mnstatus = std::make_shared<mnstatus_csr_t>(proc, CSR_MNSTATUS);
+  }
+
   if (proc->extension_enabled_const(EXT_SSTC)) {
     stimecmp = std::make_shared<stimecmp_csr_t>(proc, CSR_STIMECMP, MIP_STIP);
     vstimecmp = std::make_shared<stimecmp_csr_t>(proc, CSR_VSTIMECMP, MIP_VSTIP);
@@ -505,7 +516,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
     }
   }
 
-  if (proc->extension_enabled_const(EXT_ZCMT))
+  if (proc->extension_enabled(EXT_ZCMT))
     csrmap[CSR_JVT] = jvt = std::make_shared<jvt_csr_t>(proc, CSR_JVT, 0);
 
   serialized = false;
@@ -656,7 +667,8 @@ void processor_t::take_interrupt(reg_t pending_interrupts)
     }
   }
 
-  if (!state.debug_mode && enabled_interrupts) {
+  const bool nmie = !(state.mnstatus && !get_field(state.mnstatus->read(), MNSTATUS_NMIE));
+  if (!state.debug_mode && nmie && enabled_interrupts) {
     // nonstandard interrupts have highest priority
     if (enabled_interrupts >> (IRQ_M_EXT + 1))
       enabled_interrupts = enabled_interrupts >> (IRQ_M_EXT + 1) << (IRQ_M_EXT + 1);
@@ -684,6 +696,7 @@ void processor_t::take_interrupt(reg_t pending_interrupts)
     else
       abort();
 
+    if (check_triggers_icount) TM.detect_icount_match();
     throw trap_t(((reg_t)1 << (isa->get_max_xlen() - 1)) | ctz(enabled_interrupts));
   }
 }
@@ -709,6 +722,8 @@ void processor_t::set_privilege(reg_t prv)
 
 const char* processor_t::get_privilege_string()
 {
+  if (state.debug_mode)
+    return "D";
   if (state.v) {
     switch (state.prv) {
     case 0x0: return "VU";
@@ -864,8 +879,13 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
   } else {
     // Handle the trap in M-mode
     set_virt(false);
-    reg_t vector = (state.mtvec->read() & 1) && interrupt ? 4 * bit : 0;
-    state.pc = (state.mtvec->read() & ~(reg_t)1) + vector;
+    const reg_t vector = (state.mtvec->read() & 1) && interrupt ? 4 * bit : 0;
+    const reg_t trap_handler_address = (state.mtvec->read() & ~(reg_t)1) + vector;
+    // RNMI exception vector is implementation-defined.  Since we don't model
+    // RNMI sources, the feature isn't very useful, so pick an invalid address.
+    const reg_t rnmi_trap_handler_address = 0;
+    const bool nmie = !(state.mnstatus && !get_field(state.mnstatus->read(), MNSTATUS_NMIE));
+    state.pc = !nmie ? rnmi_trap_handler_address : trap_handler_address;
     state.mepc->write(epc);
     state.mcause->write(t.cause());
     state.mtval->write(t.get_tval());
@@ -884,7 +904,7 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
   }
 }
 
-void processor_t::take_trigger_action(triggers::action_t action, reg_t breakpoint_tval, reg_t epc)
+void processor_t::take_trigger_action(triggers::action_t action, reg_t breakpoint_tval, reg_t epc, bool virt)
 {
   if (debug) {
     std::stringstream s; // first put everything in a string, later send it to output
@@ -898,7 +918,7 @@ void processor_t::take_trigger_action(triggers::action_t action, reg_t breakpoin
       enter_debug_mode(DCSR_CAUSE_HWBP);
       break;
     case triggers::ACTION_DEBUG_EXCEPTION: {
-      trap_breakpoint trap(state.v, breakpoint_tval);
+      trap_breakpoint trap(virt, breakpoint_tval);
       take_trap(trap, epc);
       break;
     }
@@ -1140,6 +1160,7 @@ void processor_t::trigger_updated(const std::vector<triggers::trigger_t *> &trig
   mmu->check_triggers_fetch = false;
   mmu->check_triggers_load = false;
   mmu->check_triggers_store = false;
+  check_triggers_icount = false;
 
   for (auto trigger : triggers) {
     if (trigger->get_execute()) {
@@ -1150,6 +1171,9 @@ void processor_t::trigger_updated(const std::vector<triggers::trigger_t *> &trig
     }
     if (trigger->get_store()) {
       mmu->check_triggers_store = true;
+    }
+    if (trigger->icount_check_needed()) {
+      check_triggers_icount = true;
     }
   }
 }

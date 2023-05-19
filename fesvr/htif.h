@@ -47,6 +47,9 @@ class htif_t : public chunked_memif_t
 
   bool is_tohost_nonzero();
 
+  addr_t get_tohost_addr() { return tohost_addr; }
+  addr_t get_fromhost_addr() { return fromhost_addr; }
+
  protected:
   virtual void reset() = 0;
 
@@ -62,6 +65,7 @@ class htif_t : public chunked_memif_t
   virtual void idle() {}
 
   const std::vector<std::string>& host_args() { return hargs; }
+  const std::vector<std::string>& target_args() { return targs; }
 
   reg_t get_entry_point() { return entry; }
 
@@ -71,9 +75,6 @@ class htif_t : public chunked_memif_t
 
   // Given an address, return symbol from addr2symbol map
   const char* get_symbol(uint64_t addr);
-  
-  addr_t get_tohost_addr() { return tohost_addr; }
-  addr_t get_fromhost_addr() { return fromhost_addr; }
 
  private:
   void parse_arguments(int argc, char ** argv);
@@ -100,8 +101,7 @@ class htif_t : public chunked_memif_t
   std::vector<device_t*> dynamic_devices;
   std::vector<std::string> payloads;
 
-  const std::vector<std::string>& target_args() { return targs; }
-
+  std::vector<std::string> symbol_elfs;
   std::map<uint64_t, std::string> addr2symbol;
 
   friend class memif_t;
@@ -130,6 +130,8 @@ class htif_t : public chunked_memif_t
        +chroot=PATH\n\
       --payload=PATH       Load PATH memory as an additional ELF payload\n\
        +payload=PATH\n\
+      --symbol-elf=PATH    Populate the symbol table with the ELF file at PATH\n\
+       +symbol-elf=PATH\n\
 \n\
 HOST OPTIONS (currently unsupported)\n\
       --disk=DISK          Add DISK device. Use a ramdisk since this isn't\n\
@@ -147,7 +149,9 @@ TARGET (RISC-V BINARY) OPTIONS\n\
 {"signature", required_argument, 0, HTIF_LONG_OPTIONS_OPTIND + 2 },     \
 {"chroot",    required_argument, 0, HTIF_LONG_OPTIONS_OPTIND + 3 },     \
 {"payload",   required_argument, 0, HTIF_LONG_OPTIONS_OPTIND + 4 },     \
-{"signature-granularity",    optional_argument, 0, HTIF_LONG_OPTIONS_OPTIND + 5 },     \
+{"signature-granularity",    required_argument, 0, HTIF_LONG_OPTIONS_OPTIND + 5 },     \
+{"target-argument",          required_argument, 0, HTIF_LONG_OPTIONS_OPTIND + 6 },     \
+{"symbol-elf",               required_argument, 0, HTIF_LONG_OPTIONS_OPTIND + 7 },     \
 {0, 0, 0, 0}
 
 #endif // __HTIF_H

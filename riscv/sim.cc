@@ -30,6 +30,8 @@ static void handle_signal(int sig)
   signal(sig, &handle_signal);
 }
 
+const size_t sim_t::INTERLEAVE;
+
 sim_t::sim_t(const cfg_t *cfg, bool halted,
              std::vector<std::pair<reg_t, mem_t*>> mems,
              std::vector<std::pair<reg_t, abstract_device_t*>> plugin_devices,
@@ -45,7 +47,6 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
     mems(mems),
     plugin_devices(plugin_devices),
     procs(std::max(cfg->nprocs(), size_t(1))),
-    dtb_file(dtb_file ? dtb_file : ""),
     dtb_enabled(dtb_enabled),
     log_file(log_path),
     cmd_file(cmd_file),
@@ -104,9 +105,14 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
                                log_file.get(), sout_);
     procs[i]->set_end_pc(cfg->end_pc.value_or(reg_t(-1)));
     procs[i]->set_max_instrs(cfg->max_instrs.value_or(reg_t(-1)));
+    harts[cfg->hartids()[i]] = procs[i];
   }
 
-  make_dtb();
+  // When running without using a dtb, skip the fdt-based configuration steps
+  if (!dtb_enabled) return;
+
+  // Load dtb_file if provided, otherwise self-generate a dts/dtb
+  make_dtb(dtb_file);
 
   void *fdt = (void *)dtb.c_str();
 
@@ -120,7 +126,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
 #ifndef TT_EXPANDED_DRAM_ADDRESS_RANGE
   reg_t clint_base;
   if (fdt_parse_clint(fdt, &clint_base, "riscv,clint0") == 0) {
-    clint.reset(new clint_t(procs, CPU_HZ / INSNS_PER_RTC_TICK, cfg->real_time_clint()));
+    clint.reset(new clint_t(this, CPU_HZ / INSNS_PER_RTC_TICK, cfg->real_time_clint()));
     bus.add_device(clint_base, clint.get());
   }
 
@@ -131,7 +137,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   reg_t plic_base;
   uint32_t plic_ndev;
   if (fdt_parse_plic(fdt, &plic_base, &plic_ndev, "riscv,plic0") == 0) {
-    plic.reset(new plic_t(procs, true, plic_ndev));
+    plic.reset(new plic_t(this, plic_ndev));
     bus.add_device(plic_base, plic.get());
     intctrl = plic.get();
   }
@@ -299,10 +305,10 @@ bool sim_t::mmio_store(reg_t paddr, size_t len, const uint8_t* bytes)
   return bus.store(paddr, len, bytes);
 }
 
-void sim_t::make_dtb()
+void sim_t::make_dtb(const char* dtb_file)
 {
-  if (!dtb_file.empty()) {
-    std::ifstream fin(dtb_file.c_str(), std::ios::binary);
+  if (dtb_file) {
+    std::ifstream fin(dtb_file, std::ios::binary);
     if (!fin.good()) {
       std::cerr << "can't find dtb file: " << dtb_file << std::endl;
       exit(-1);
@@ -323,7 +329,7 @@ void sim_t::make_dtb()
   int fdt_code = fdt_check_header(dtb.c_str());
   if (fdt_code) {
     std::cerr << "Failed to read DTB from ";
-    if (dtb_file.empty()) {
+    if (!dtb_file) {
       std::cerr << "auto-generated DTS string";
     } else {
       std::cerr << "`" << dtb_file << "'";

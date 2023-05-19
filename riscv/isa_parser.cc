@@ -32,10 +32,6 @@ isa_parser_t::isa_parser_t(const char* str, const char *priv)
   isa_string = strtolower(str);
   const char* all_subsets = "mafdqchpv";
 
-  // enable zicntr and zihpm unconditionally for backward compatibility
-  extension_table[EXT_ZICNTR] = true;
-  extension_table[EXT_ZIHPM] = true;
-
   if (isa_string.compare(0, 4, "rv32") == 0)
     max_xlen = 32;
   else if (isa_string.compare(0, 4, "rv64") == 0)
@@ -152,6 +148,13 @@ isa_parser_t::isa_parser_t(const char* str, const char *priv)
     } else if (ext_str == "zhinxmin") {
       extension_table[EXT_ZFINX] = true;
       extension_table[EXT_ZHINXMIN] = true;
+    } else if (ext_str == "zce") {
+      extension_table[EXT_ZCA] = true;
+      extension_table[EXT_ZCB] = true;
+      extension_table[EXT_ZCMT] = true;
+      extension_table[EXT_ZCMP] = true;
+      if (extension_table['F'] && max_xlen == 32)
+        extension_table[EXT_ZCF] = true;
     } else if (ext_str == "zca") {
       extension_table[EXT_ZCA] = true;
     } else if (ext_str == "zcf") {
@@ -204,21 +207,31 @@ isa_parser_t::isa_parser_t(const char* str, const char *priv)
       extension_table[EXT_SMEPMP] = true;
     } else if (ext_str == "smstateen") {
       extension_table[EXT_SMSTATEEN] = true;
+    } else if (ext_str == "smrnmi") {
+      extension_table[EXT_SMRNMI] = true;
     } else if (ext_str == "sscofpmf") {
       extension_table[EXT_SSCOFPMF] = true;
+    } else if (ext_str == "svadu") {
+      extension_table[EXT_SVADU] = true;
     } else if (ext_str == "svnapot") {
       extension_table[EXT_SVNAPOT] = true;
     } else if (ext_str == "svpbmt") {
       extension_table[EXT_SVPBMT] = true;
     } else if (ext_str == "svinval") {
       extension_table[EXT_SVINVAL] = true;
+    } else if (ext_str == "zfa") {
+      extension_table[EXT_ZFA] = true;
     } else if (ext_str == "zicbom") {
       extension_table[EXT_ZICBOM] = true;
     } else if (ext_str == "zicboz") {
       extension_table[EXT_ZICBOZ] = true;
     } else if (ext_str == "zicbop") {
     } else if (ext_str == "zicntr") {
+      extension_table[EXT_ZICNTR] = true;
+    } else if (ext_str == "zicond") {
+      extension_table[EXT_ZICOND] = true;
     } else if (ext_str == "zihpm") {
+      extension_table[EXT_ZIHPM] = true;
     } else if (ext_str == "sstc") {
         extension_table[EXT_SSTC] = true;
     } else if (ext_str[0] == 'x') {

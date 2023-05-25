@@ -16,6 +16,10 @@
 #define NS16550_REG_IO_WIDTH 1
 #define NS16550_INTERRUPT_ID 1
 #define EXT_IO_BASE        0x40000000
-#define DRAM_BASE          0x80000000
+#ifndef TT_EXPANDED_DRAM_ADDRESS_RANGE
+    #define DRAM_BASE          0x80000000
+#else
+    #define DRAM_BASE          0x100000
+#endif
 
 #endif

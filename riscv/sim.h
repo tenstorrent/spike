@@ -104,6 +104,8 @@ private:
 
   virtual const char* get_symbol(uint64_t paddr) override;
 
+  bool is_tohost_nonzero();
+
   // presents a prompt for introspection into the simulation
   void interactive();
 

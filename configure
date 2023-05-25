@@ -715,6 +715,9 @@ with_isa
 with_priv
 with_varch
 with_target
+enable_tt_table_walk_debug
+enable_tt_stop_if_tohost_nonzero
+enable_tt_expanded_dram_address_range
 enable_dual_endian
 '
       ac_precious_vars='build_alias
@@ -1358,8 +1361,14 @@ Optional Features:
   --enable-stow           Enable stow-based install
   --enable-optional-subprojects
                           Enable all optional subprojects
+  --enable-tt-table-walk-debug
+                          Prints information and error messages during table walk
+  --enable-tt-stop-if-tohost-nonzero
+                          Useful if immediately after the test writes to tohost, the environment requires termination
   --enable-dual-endian    Enable support for running target in either
                           endianness
+  --enable-tt-expanded-dram-address-range
+                          Starts DRAM_BASE at 0x100000 and increases memory size to a large value
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -6042,6 +6051,45 @@ _ACEOF
 
 else
   as_fn_error $? "libpthread is required" "$LINENO" 5
+fi
+
+# Check whether --enable-tt-expanded-dram-address-range given.
+if test "${enable_tt_expanded_dram_address_range+set}" = set; then :
+  enableval=$enable_tt_expanded_dram_address_range;
+fi
+
+if test "x$enable_tt_expanded_dram_address_range" = "xyes"; then :
+
+
+$as_echo "#define TT_EXPANDED_DRAM_ADDRESS_RANGE/**/" >>confdefs.h
+
+
+fi
+
+# Check whether --enable-tt-table-walk-debug was given.
+if test "${enable_tt_table_walk_debug+set}" = set; then :
+  enableval=$enable_tt_table_walk_debug;
+fi
+
+if test "x$enable_tt_table_walk_debug" = "xyes"; then :
+
+
+$as_echo "#define TT_TABLE_WALK_DEBUG /**/" >>confdefs.h
+
+
+fi
+
+# Check whether --enable-tt-stop-if-tohost-nonzero was given.
+if test "${enable_tt_stop_if_tohost_nonzero+set}" = set; then :
+  enableval=$enable_tt_stop_if_tohost_nonzero;
+fi
+
+if test "x$enable_tt_stop_if_tohost_nonzero" = "xyes"; then :
+
+
+$as_echo "#define TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO /**/" >>confdefs.h
+
+
 fi
 
 

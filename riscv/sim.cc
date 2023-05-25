@@ -66,10 +66,12 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   for (auto& x : mems)
     bus.add_device(x.first, x.second);
 
+#ifndef TT_EXPANDED_DRAM_ADDRESS_RANGE
   for (auto& x : plugin_devices)
     bus.add_device(x.first, x.second);
 
   debug_module.add_device(&bus);
+#endif
 
   socketif = NULL;
 #ifdef HAVE_BOOST_ASIO
@@ -101,6 +103,8 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   for (size_t i = 0; i < cfg->nprocs(); i++) {
     procs[i] = new processor_t(&isa, cfg, this, cfg->hartids()[i], halted,
                                log_file.get(), sout_);
+    procs[i]->set_end_pc(cfg->end_pc.value_or(reg_t(-1)));
+    procs[i]->set_max_instrs(cfg->max_instrs.value_or(reg_t(-1)));
     harts[cfg->hartids()[i]] = procs[i];
   }
 
@@ -119,6 +123,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   // that's not bus-accessible), but it should handle the normal use cases. In
   // particular, the default device tree configuration that you get without
   // setting the dtb_file argument has one.
+#ifndef TT_EXPANDED_DRAM_ADDRESS_RANGE
   reg_t clint_base;
   if (fdt_parse_clint(fdt, &clint_base, "riscv,clint0") == 0) {
     clint.reset(new clint_t(this, CPU_HZ / INSNS_PER_RTC_TICK, cfg->real_time_clint()));
@@ -147,6 +152,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
                                 ns16550_shift, ns16550_io_width));
     bus.add_device(ns16550_base, ns16550.get());
   }
+#endif
 
   //per core attribute
   int cpu_offset = 0, rc;
@@ -386,6 +392,11 @@ char* sim_t::addr_to_mem(reg_t paddr) {
     if (paddr - desc.first < mem->size())
       return mem->contents(paddr - desc.first);
   return NULL;
+}
+
+bool sim_t::is_tohost_nonzero()
+{
+  return htif_t::is_tohost_nonzero();
 }
 
 const char* sim_t::get_symbol(uint64_t paddr)

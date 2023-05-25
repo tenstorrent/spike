@@ -37,7 +37,7 @@ processor_t::processor_t(const isa_parser_t *isa, const cfg_t *cfg,
   log_file(log_file), sout_(sout_.rdbuf()), halt_on_reset(halt_on_reset),
   in_wfi(false), check_triggers_icount(false),
   impl_table(256, false), extension_enable_table(isa->get_extension_table()),
-  last_pc(1), executions(1), TM(cfg->trigger_count)
+  last_pc(1), executions(1), TM(cfg->trigger_count), step_count(0)
 {
   VU.p = this;
   TM.proc = this;
@@ -740,6 +740,16 @@ const char* processor_t::get_privilege_string()
   abort();
 }
 
+void processor_t::set_end_pc(reg_t end_pc)
+{
+  this->end_pc = end_pc;
+}
+
+void processor_t::set_max_instrs(reg_t max_instrs)
+{
+  this->max_instrs = max_instrs;
+}
+
 void processor_t::set_virt(bool virt)
 {
   reg_t tmp, mask;
@@ -794,6 +804,15 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
          << ":           tval 0x" << std::hex << std::setfill('0') << std::setw(max_xlen / 4)
          << zext(t.get_tval(), max_xlen) << std::endl;
     debug_output_log(&s);
+  }
+
+  if(this->step_count >= this->max_instrs)
+  {
+    throw max_instrs_exception_t();
+  }
+  else
+  {
+    (this->step_count)++;
   }
 
   if (state.debug_mode) {

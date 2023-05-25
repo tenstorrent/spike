@@ -45,6 +45,8 @@ class htif_t : public chunked_memif_t
     return endianness == endianness_big? target_endian<T>::to_be(n) : target_endian<T>::to_le(n);
   }
 
+  bool is_tohost_nonzero();
+
   addr_t get_tohost_addr() { return tohost_addr; }
   addr_t get_fromhost_addr() { return fromhost_addr; }
 

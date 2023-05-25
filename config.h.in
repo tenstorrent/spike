@@ -102,6 +102,15 @@
 /* Define if subproject MCPPBS_SPROJ_NORM is enabled */
 #undef RISCV_ENABLED
 
+/* Enable expanded dram address range/ */
+#undef TT_EXPANDED_DRAM_ADDRESS_RANGE
+
+/* Print information and error messages during table walk */
+#undef TT_TABLE_WALK_DEBUG
+
+/* Stop simulation is tohost nonzero */
+#undef TT_STOP_IMMEDIATELY_IF_TOHOST_NONZERO
+
 /* Enable support for running target in either endianness */
 #undef RISCV_ENABLE_DUAL_ENDIAN
 

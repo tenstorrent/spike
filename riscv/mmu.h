@@ -524,4 +524,5 @@ inline vm_info decode_vm_info(int xlen, bool stage2, reg_t prv, reg_t satp)
   }
 }
 
+
 #endif

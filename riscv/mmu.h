@@ -187,6 +187,17 @@ public:
     })
   }
 
+  template<typename T>
+  T amo_compare_and_swap(reg_t addr, T comp, T swap) {
+    convert_load_traps_to_store_traps({
+      store_slow_path(addr, sizeof(T), nullptr, {false, false, false}, false, true);
+      auto lhs = load<T>(addr);
+      if (lhs == comp)
+        store<T>(addr, swap);
+      return lhs;
+    })
+  }
+
   void store_float128(reg_t addr, float128_t val)
   {
     if (unlikely(addr & (sizeof(float128_t)-1)) && !is_misaligned_enabled()) {
@@ -214,7 +225,7 @@ public:
 
   void clean_inval(reg_t addr, bool clean, bool inval) {
     convert_load_traps_to_store_traps({
-        const reg_t paddr = translate(generate_access_info(addr, LOAD, {false, false, false}), blocksz) & ~(blocksz - 1);
+      const reg_t paddr = translate(generate_access_info(addr, LOAD, {false, false, false}), 1);
       if (sim->reservable(paddr)) {
         if (tracer.interested_in_range(paddr, paddr + PGSIZE, LOAD))
           tracer.clean_invalidate(paddr, blocksz, clean, inval);

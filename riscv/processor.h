@@ -85,7 +85,9 @@ struct state_t
   // control and status registers
   std::unordered_map<reg_t, csr_t_p> csrmap;
   reg_t prv;    // TODO: Can this be an enum instead?
+  reg_t prev_prv;
   bool v;
+  bool prev_v;
   misa_csr_t_p misa;
   mstatus_csr_t_p mstatus;
   csr_t_p mstatush;
@@ -109,6 +111,13 @@ struct state_t
   csr_t_p stvec;
   virtualized_csr_t_p satp;
   csr_t_p scause;
+
+  // When taking a trap into HS-mode, we must access the nonvirtualized HS-mode CSRs directly:
+  csr_t_p nonvirtual_stvec;
+  csr_t_p nonvirtual_scause;
+  csr_t_p nonvirtual_sepc;
+  csr_t_p nonvirtual_stval;
+  sstatus_proxy_csr_t_p nonvirtual_sstatus;
 
   csr_t_p mtval2;
   csr_t_p mtinst;
@@ -262,10 +271,9 @@ public:
       throw trap_instruction_address_misaligned(state.v, pc, 0, 0);
   }
   reg_t legalize_privilege(reg_t);
-  void set_privilege(reg_t);
+  void set_privilege(reg_t, bool);
   void set_end_pc(reg_t);
   void set_max_instrs(reg_t);
-  void set_virt(bool);
   const char* get_privilege_string();
   void update_histogram(reg_t pc);
   const disassembler_t* get_disassembler() { return disassembler; }

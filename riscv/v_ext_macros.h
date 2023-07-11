@@ -64,11 +64,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   }
 }
 
-static inline bool is_aligned(const unsigned val, const unsigned pos)
-{
-  return pos ? (val & (pos - 1)) == 0 : true;
-}
-
 #define VI_NARROW_CHECK_COMMON \
   require_vector(true); \
   require(P.VU.vflmul <= 4); \
@@ -328,6 +323,10 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
 #define VV_U_PARAMS(x) \
   type_usew_t<x>::type &vd = P.VU.elt<type_usew_t<x>::type>(rd_num, i, true); \
   type_usew_t<x>::type vs1 = P.VU.elt<type_usew_t<x>::type>(rs1_num, i); \
+  type_usew_t<x>::type vs2 = P.VU.elt<type_usew_t<x>::type>(rs2_num, i);
+
+#define V_U_PARAMS(x) \
+  type_usew_t<x>::type &vd = P.VU.elt<type_usew_t<x>::type>(rd_num, i, true); \
   type_usew_t<x>::type vs2 = P.VU.elt<type_usew_t<x>::type>(rs2_num, i);
 
 #define VX_U_PARAMS(x) \
@@ -697,6 +696,24 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     BODY; \
   } \
   VI_LOOP_END 
+
+#define VI_V_ULOOP(BODY) \
+  VI_CHECK_SSS(false) \
+  VI_LOOP_BASE \
+  if (sew == e8) { \
+    V_U_PARAMS(e8); \
+    BODY; \
+  } else if (sew == e16) { \
+    V_U_PARAMS(e16); \
+    BODY; \
+  } else if (sew == e32) { \
+    V_U_PARAMS(e32); \
+    BODY; \
+  } else if (sew == e64) { \
+    V_U_PARAMS(e64); \
+    BODY; \
+  } \
+  VI_LOOP_END
 
 #define VI_VX_ULOOP(BODY) \
   VI_CHECK_SSS(false) \
@@ -1493,8 +1510,24 @@ reg_t index[P.VU.vlmax]; \
   reg_t UNUSED rs2_num = insn.rs2(); \
   softfloat_roundingMode = STATE.frm->read();
 
+#define VI_VFP_BF16_COMMON \
+  require_fp; \
+  require((P.VU.vsew == e16 && p->extension_enabled(EXT_ZVFBFWMA))); \
+  require_vector(true); \
+  require(STATE.frm->read() < 0x5); \
+  reg_t UNUSED vl = P.VU.vl->read(); \
+  reg_t UNUSED rd_num = insn.rd(); \
+  reg_t UNUSED rs1_num = insn.rs1(); \
+  reg_t UNUSED rs2_num = insn.rs2(); \
+  softfloat_roundingMode = STATE.frm->read();
+
 #define VI_VFP_LOOP_BASE \
   VI_VFP_COMMON \
+  for (reg_t i = P.VU.vstart->read(); i < vl; ++i) { \
+    VI_LOOP_ELEMENT_SKIP();
+
+#define VI_VFP_BF16_LOOP_BASE \
+  VI_VFP_BF16_COMMON \
   for (reg_t i = P.VU.vstart->read(); i < vl; ++i) { \
     VI_LOOP_ELEMENT_SKIP();
 
@@ -1823,6 +1856,25 @@ reg_t index[P.VU.vlmax]; \
   DEBUG_RVV_FP_VV; \
   VI_VFP_LOOP_END
 
+#define VI_VFP_BF16_VF_LOOP_WIDE(BODY) \
+  VI_CHECK_DSS(false); \
+  VI_VFP_BF16_LOOP_BASE \
+  switch (P.VU.vsew) { \
+    case e16: { \
+      float32_t &vd = P.VU.elt<float32_t>(rd_num, i, true); \
+      float32_t vs2 = bf16_to_f32(P.VU.elt<bfloat16_t>(rs2_num, i)); \
+      float32_t rs1 = bf16_to_f32(FRS1_BF); \
+      BODY; \
+      set_fp_exceptions; \
+      break; \
+    } \
+    default: \
+      require(0); \
+      break; \
+  }; \
+  DEBUG_RVV_FP_VV; \
+  VI_VFP_LOOP_END
+
 #define VI_VFP_VV_LOOP_WIDE(BODY16, BODY32) \
   VI_CHECK_DSS(true); \
   VI_VFP_LOOP_BASE \
@@ -1840,6 +1892,25 @@ reg_t index[P.VU.vlmax]; \
       float64_t vs2 = f32_to_f64(P.VU.elt<float32_t>(rs2_num, i)); \
       float64_t vs1 = f32_to_f64(P.VU.elt<float32_t>(rs1_num, i)); \
       BODY32; \
+      set_fp_exceptions; \
+      break; \
+    } \
+    default: \
+      require(0); \
+      break; \
+  }; \
+  DEBUG_RVV_FP_VV; \
+  VI_VFP_LOOP_END
+
+#define VI_VFP_BF16_VV_LOOP_WIDE(BODY) \
+  VI_CHECK_DSS(true); \
+  VI_VFP_BF16_LOOP_BASE \
+  switch (P.VU.vsew) { \
+    case e16: { \
+      float32_t &vd = P.VU.elt<float32_t>(rd_num, i, true); \
+      float32_t vs2 = bf16_to_f32(P.VU.elt<bfloat16_t>(rs2_num, i)); \
+      float32_t vs1 = bf16_to_f32(P.VU.elt<bfloat16_t>(rs1_num, i)); \
+      BODY; \
       set_fp_exceptions; \
       break; \
     } \
@@ -1985,6 +2056,17 @@ reg_t index[P.VU.vlmax]; \
       break; \
   }
 
+#define VI_VFP_WCVT_FP_TO_BF16(BODY, CHECK) \
+  VI_CHECK_DSS(false); \
+  switch (P.VU.vsew) { \
+    case e16: \
+      { VI_VFP_CVT_LOOP(CVT_FP_TO_FP_PARAMS(16, 32), CHECK, BODY); } \
+      break; \
+    default: \
+      require(0); \
+      break; \
+  }
+
 #define VI_VFP_WCVT_INT_TO_FP(BODY8, BODY16, BODY32, \
                               CHECK8, CHECK16, CHECK32, \
                               sign) \
@@ -2029,6 +2111,17 @@ reg_t index[P.VU.vlmax]; \
       break; \
     case e32: \
       { VI_VFP_CVT_LOOP(CVT_FP_TO_FP_PARAMS(64, 32), CHECK64, BODY64); } \
+      break; \
+    default: \
+      require(0); \
+      break; \
+  }
+
+#define VI_VFP_NCVT_BF16_TO_FP(BODY, CHECK) \
+  VI_CHECK_SDS(false); \
+  switch (P.VU.vsew) { \
+    case e16: \
+      { VI_VFP_CVT_LOOP(CVT_FP_TO_FP_PARAMS(32, 16), CHECK, BODY); } \
       break; \
     default: \
       require(0); \

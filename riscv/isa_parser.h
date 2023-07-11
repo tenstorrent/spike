@@ -49,6 +49,7 @@ typedef enum {
   EXT_SVINVAL,
   EXT_ZDINX,
   EXT_ZFA,
+  EXT_ZFBFMIN,
   EXT_ZFINX,
   EXT_ZHINX,
   EXT_ZHINXMIN,
@@ -57,6 +58,16 @@ typedef enum {
   EXT_ZICNTR,
   EXT_ZICOND,
   EXT_ZIHPM,
+  EXT_ZVBB,
+  EXT_ZVBC,
+  EXT_ZVFBFMIN,
+  EXT_ZVFBFWMA,
+  EXT_ZVKG,
+  EXT_ZVKNED,
+  EXT_ZVKNHA,
+  EXT_ZVKNHB,
+  EXT_ZVKSED,
+  EXT_ZVKSH,
   EXT_XZBP,
   EXT_XZBS,
   EXT_XZBE,
@@ -66,6 +77,8 @@ typedef enum {
   EXT_XZBR,
   EXT_XZBT,
   EXT_SSTC,
+  EXT_ZACAS,
+  EXT_INTERNAL_ZFH_MOVE,
   NUM_ISA_EXTENSIONS
 } isa_extension_t;
 

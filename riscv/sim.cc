@@ -269,12 +269,20 @@ void sim_t::step(size_t n)
     procs[current_proc]->step(steps);
 
     current_step += steps;
-    if (current_step == INTERLEAVE)
+
+    // Randomly subdivide interleave
+    size_t early_bail = rand() % INTERLEAVE + 1;
+    if (current_step >= early_bail)
     {
       current_step = 0;
       procs[current_proc]->get_mmu()->yield_load_reservation();
-      if (++current_proc == procs.size()) {
-        current_proc = 0;
+
+      // Hand control to a random hart
+      size_t new_proc = rand() % procs.size();
+      current_proc = new_proc;
+
+      if (current_proc == procs.size()) {
+        //current_proc = 0;
         reg_t rtc_ticks = INTERLEAVE / INSNS_PER_RTC_TICK;
         for (auto &dev : devices) dev->tick(rtc_ticks);
       }

@@ -174,7 +174,7 @@ bool mmu_t::mmio(reg_t paddr, size_t len, uint8_t* bytes, access_type type)
   return true;
 }
 
-void mmu_t::check_triggers(triggers::operation_t operation, reg_t address, bool virt, std::optional<reg_t> data)
+void mmu_t::check_triggers(triggers::operation_t operation, reg_t address, bool virt, reg_t tval, std::optional<reg_t> data)
 {
   if (matched_trigger || !proc)
     return;
@@ -184,13 +184,13 @@ void mmu_t::check_triggers(triggers::operation_t operation, reg_t address, bool 
   if (match.has_value())
     switch (match->timing) {
       case triggers::TIMING_BEFORE:
-        throw triggers::matched_t(operation, address, match->action, virt);
+        throw triggers::matched_t(operation, tval, match->action, virt);
 
       case triggers::TIMING_AFTER:
         // We want to take this exception on the next instruction.  We check
         // whether to do so in the I$ refill path, so flush the I$.
         flush_icache();
-        matched_trigger = new triggers::matched_t(operation, address, match->action, virt);
+        matched_trigger = new triggers::matched_t(operation, tval, match->action, virt);
     }
 }
 
@@ -418,7 +418,7 @@ reg_t mmu_t::s2xlate(reg_t gva, reg_t gpa, access_type type, access_type trap_ty
       reg_t pte = pte_load(pte_paddr, gva, virt, trap_type, vm.ptesize);
       reg_t ppn = (pte & ~reg_t(PTE_ATTR)) >> PTE_PPN_SHIFT;
       bool pbmte = proc->get_state()->menvcfg->read() & MENVCFG_PBMTE;
-      bool hade = proc->get_state()->menvcfg->read() & MENVCFG_HADE;
+      bool hade = proc->get_state()->menvcfg->read() & MENVCFG_ADUE;
 
       if (pte & PTE_RSVD) {
         break;
@@ -532,7 +532,7 @@ reg_t mmu_t::walk(mem_access_info_t access_info)
     reg_t pte = pte_load(pte_paddr, addr, virt, type, vm.ptesize);
     reg_t ppn = (pte & ~reg_t(PTE_ATTR)) >> PTE_PPN_SHIFT;
     bool pbmte = virt ? (proc->get_state()->henvcfg->read() & HENVCFG_PBMTE) : (proc->get_state()->menvcfg->read() & MENVCFG_PBMTE);
-    bool hade = virt ? (proc->get_state()->henvcfg->read() & HENVCFG_HADE) : (proc->get_state()->menvcfg->read() & MENVCFG_HADE);
+    bool hade = virt ? (proc->get_state()->henvcfg->read() & HENVCFG_ADUE) : (proc->get_state()->menvcfg->read() & MENVCFG_ADUE);
 
     #ifdef TT_TABLE_WALK_DEBUG
     std::cout << "\tPTE: " << std::hex << pte << ", PPN: " << std::hex << ppn << std::endl;

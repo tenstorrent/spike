@@ -6,9 +6,7 @@
 
 #include <bitset>
 #include <string>
-#include <unordered_map>
-
-class extension_t;
+#include <set>
 
 typedef enum {
   // 65('A') ~ 90('Z') is reserved for standard isa in misa
@@ -79,6 +77,9 @@ typedef enum {
   EXT_SSTC,
   EXT_ZACAS,
   EXT_INTERNAL_ZFH_MOVE,
+  EXT_SMCSRIND,
+  EXT_SSCSRIND,
+  EXT_SMCNTRPMF,
   NUM_ISA_EXTENSIONS
 } isa_extension_t;
 
@@ -109,15 +110,14 @@ public:
 
   std::bitset<NUM_ISA_EXTENSIONS> get_extension_table() const { return extension_table; }
 
-  const std::unordered_map<std::string, extension_t*> &
-  get_extensions() const { return extensions; }
+  const std::set<std::string> &get_extensions() const { return extensions; }
 
 protected:
   unsigned max_xlen;
   reg_t max_isa;
   std::bitset<NUM_ISA_EXTENSIONS> extension_table;
   std::string isa_string;
-  std::unordered_map<std::string, extension_t*> extensions;
+  std::set<std::string> extensions;
 };
 
 #endif

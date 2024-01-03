@@ -29,7 +29,7 @@
     require_extension(EXT_ZVBC); \
   } while (0)
 
-// Ensures that the ZVKG extension (vector Gallois Field Multiplication)
+// Ensures that the ZVKG extension (vector Galois Field Multiplication)
 // is present, and the vector unit is enabled and in a valid state.
 #define require_zvkg \
   do { \
@@ -750,7 +750,7 @@
 //  - 'rs1', unsigned, SEW width, by value, constant.
 #define VI_ZVK_VX_WIDENING_ULOOP(BODY) \
   do { \
-    VI_CHECK_DSS(true); \
+    VI_CHECK_DSS(false); \
     VI_LOOP_BASE \
       switch (sew) { \
         case e8: { \
@@ -788,7 +788,7 @@
 //  - 'zimm5', unsigned, SEW width, by value, constant.
 #define VI_ZVK_VI_WIDENING_ULOOP(BODY) \
   do { \
-    VI_CHECK_DSS(true); \
+    VI_CHECK_DSS(false); \
     VI_LOOP_BASE \
       switch (sew) { \
         case e8: { \

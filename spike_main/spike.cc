@@ -10,6 +10,7 @@
 #include "extension.h"
 #include <dlfcn.h>
 #include <fesvr/option_parser.h>
+#include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
@@ -18,6 +19,7 @@
 #include <fstream>
 #include <limits>
 #include <cinttypes>
+#include <sstream>
 #include "../VERSION"
 
 static void help(int exit_code = 1)
@@ -41,6 +43,7 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --debug-cmd=<name>    Read commands from file (use with -d)\n");
   fprintf(stderr, "  --isa=<name>          RISC-V ISA string [default %s]\n", DEFAULT_ISA);
   fprintf(stderr, "  --pmpregions=<n>      Number of PMP regions [default 16]\n");
+  fprintf(stderr, "  --pmpgranularity=<n>  PMP Granularity in bytes [default 4]\n");
   fprintf(stderr, "  --priv=<m|mu|msu>     RISC-V privilege modes supported [default %s]\n", DEFAULT_PRIV);
   fprintf(stderr, "  --varch=<name>        RISC-V Vector uArch string [default %s]\n", DEFAULT_VARCH);
   fprintf(stderr, "  --pc=<address>        Override ELF entry point\n");
@@ -342,7 +345,7 @@ int main(int argc, char** argv)
   bool dtb_enabled = true;
   const char* kernel = NULL;
   reg_t kernel_offset, kernel_size;
-  std::vector<const device_factory_t*> plugin_device_factories;
+  std::vector<device_factory_t*> plugin_device_factories;
   std::unique_ptr<icache_sim_t> ic;
   std::unique_ptr<dcache_sim_t> dc;
   std::unique_ptr<cache_sim_t> l2;
@@ -356,41 +359,30 @@ int main(int argc, char** argv)
   bool use_rbb = false;
   unsigned dmi_rti = 0;
   reg_t blocksz = 64;
-  debug_module_config_t dm_config = {
-    .progbufsize = 2,
-    .max_sba_data_width = 0,
-    .require_authentication = false,
-    .abstract_rti = 0,
-    .support_hasel = true,
-    .support_abstract_csr_access = true,
-    .support_abstract_fpr_access = true,
-    .support_haltgroups = true,
-    .support_impebreak = true
-  };
+  debug_module_config_t dm_config;
   cfg_arg_t<size_t> nprocs(1);
 
-  cfg_t cfg(/*default_initrd_bounds=*/std::make_pair((reg_t)0, (reg_t)0),
-            /*default_bootargs=*/nullptr,
-            /*default_isa=*/DEFAULT_ISA,
-            /*default_priv=*/DEFAULT_PRIV,
-            /*default_varch=*/DEFAULT_VARCH,
-            /*default_misaligned=*/false,
-            /*default_endianness*/endianness_little,
-            /*default_pmpregions=*/16,
-#ifdef TT_EXPANDED_DRAM_ADDRESS_RANGE
-            /*default_mem_layout=*/parse_mem_layout("0x100000:90000000000000000"),
-#else
-            /*default_mem_layout=*/parse_mem_layout("2048"),
-#endif
-            /*default_hartids=*/std::vector<size_t>(),
-            /*default_real_time_clint=*/false,
-            /*default_trigger_count=*/4);
+  cfg_t cfg;
 
   auto const device_parser = [&plugin_device_factories](const char *s) {
-    const std::string name(s);
+    const std::string device_args(s);
+    std::vector<std::string> parsed_args;
+    std::stringstream sstr(device_args);
+    while (sstr.good()) {
+      std::string substr;
+      getline(sstr, substr, ',');
+      parsed_args.push_back(substr);
+    }
+    if (parsed_args.empty()) throw std::runtime_error("Plugin argument is empty.");
+
+    const std::string name = parsed_args[0];
     if (name.empty()) throw std::runtime_error("Plugin name is empty.");
+
     auto it = mmio_device_map().find(name);
     if (it == mmio_device_map().end()) throw std::runtime_error("Plugin \"" + name + "\" not found in loaded extlibs.");
+
+    parsed_args.erase(parsed_args.begin());
+    it->second->set_sargs(parsed_args);
     plugin_device_factories.push_back(it->second);
   };
 
@@ -421,6 +413,7 @@ int main(int argc, char** argv)
   parser.option(0, "log-cache-miss", 0, [&](const char UNUSED *s){log_cache = true;});
   parser.option(0, "isa", 1, [&](const char* s){cfg.isa = s;});
   parser.option(0, "pmpregions", 1, [&](const char* s){cfg.pmpregions = atoul_safe(s);});
+  parser.option(0, "pmpgranularity", 1, [&](const char* s){cfg.pmpgranularity = atoul_safe(s);});
   parser.option(0, "priv", 1, [&](const char* s){cfg.priv = s;});
   parser.option(0, "varch", 1, [&](const char* s){cfg.varch = s;});
   parser.option(0, "device", 1, device_parser);
@@ -494,10 +487,10 @@ int main(int argc, char** argv)
     help();
 
   std::vector<std::pair<reg_t, abstract_mem_t*>> mems =
-      make_mems(cfg.mem_layout());
+      make_mems(cfg.mem_layout);
 
   if (kernel && check_file_exists(kernel)) {
-    const char *isa = cfg.isa();
+    const char *isa = cfg.isa;
     kernel_size = get_file_size(kernel);
     if (isa[2] == '6' && isa[3] == '4')
       kernel_offset = 0x200000;

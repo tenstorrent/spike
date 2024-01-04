@@ -840,6 +840,29 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
     DEFINE_XAMO(amocas_q)
   }
 
+  if (isa->extension_enabled(EXT_ZABHA)) {
+    DEFINE_XAMO(amoadd_b)
+    DEFINE_XAMO(amoswap_b)
+    DEFINE_XAMO(amoand_b)
+    DEFINE_XAMO(amoor_b)
+    DEFINE_XAMO(amoxor_b)
+    DEFINE_XAMO(amomin_b)
+    DEFINE_XAMO(amomax_b)
+    DEFINE_XAMO(amominu_b)
+    DEFINE_XAMO(amomaxu_b)
+    DEFINE_XAMO(amocas_b)
+    DEFINE_XAMO(amoadd_h)
+    DEFINE_XAMO(amoswap_h)
+    DEFINE_XAMO(amoand_h)
+    DEFINE_XAMO(amoor_h)
+    DEFINE_XAMO(amoxor_h)
+    DEFINE_XAMO(amomin_h)
+    DEFINE_XAMO(amomax_h)
+    DEFINE_XAMO(amominu_h)
+    DEFINE_XAMO(amomaxu_h)
+    DEFINE_XAMO(amocas_h)
+  }
+
   add_insn(new disasm_insn_t("j", match_jal, mask_jal | mask_rd, {&jump_target}));
   add_insn(new disasm_insn_t("jal", match_jal | match_rd_ra, mask_jal | mask_rd, {&jump_target}));
   add_insn(new disasm_insn_t("jal", match_jal, mask_jal, {&xrd, &jump_target}));
@@ -1795,7 +1818,7 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
     #undef DISASM_OPIV_S__INSN
     #undef DISASM_OPIV_W__INSN
     #undef DISASM_VFUNARY0_INSN
-}
+  }
 
   if (isa->extension_enabled(EXT_ZVFBFMIN)) {
     DEFINE_VECTOR_V(vfncvtbf16_f_f_w);
@@ -2149,6 +2172,60 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
     DEFINE_RTYPE(czero_nez);
   }
 
+  if (isa->extension_enabled(EXT_ZIMOP)) {
+    DEFINE_R1TYPE(mop_r_0);
+    DEFINE_R1TYPE(mop_r_1);
+    DEFINE_R1TYPE(mop_r_2);
+    DEFINE_R1TYPE(mop_r_3);
+    DEFINE_R1TYPE(mop_r_4);
+    DEFINE_R1TYPE(mop_r_5);
+    DEFINE_R1TYPE(mop_r_6);
+    DEFINE_R1TYPE(mop_r_7);
+    DEFINE_R1TYPE(mop_r_8);
+    DEFINE_R1TYPE(mop_r_9);
+    DEFINE_R1TYPE(mop_r_10);
+    DEFINE_R1TYPE(mop_r_11);
+    DEFINE_R1TYPE(mop_r_12);
+    DEFINE_R1TYPE(mop_r_13);
+    DEFINE_R1TYPE(mop_r_14);
+    DEFINE_R1TYPE(mop_r_15);
+    DEFINE_R1TYPE(mop_r_16);
+    DEFINE_R1TYPE(mop_r_17);
+    DEFINE_R1TYPE(mop_r_18);
+    DEFINE_R1TYPE(mop_r_19);
+    DEFINE_R1TYPE(mop_r_20);
+    DEFINE_R1TYPE(mop_r_21);
+    DEFINE_R1TYPE(mop_r_22);
+    DEFINE_R1TYPE(mop_r_23);
+    DEFINE_R1TYPE(mop_r_24);
+    DEFINE_R1TYPE(mop_r_25);
+    DEFINE_R1TYPE(mop_r_26);
+    DEFINE_R1TYPE(mop_r_27);
+    DEFINE_R1TYPE(mop_r_28);
+    DEFINE_R1TYPE(mop_r_29);
+    DEFINE_R1TYPE(mop_r_30);
+    DEFINE_R1TYPE(mop_r_31);
+    DEFINE_RTYPE(mop_rr_0);
+    DEFINE_RTYPE(mop_rr_1);
+    DEFINE_RTYPE(mop_rr_2);
+    DEFINE_RTYPE(mop_rr_3);
+    DEFINE_RTYPE(mop_rr_4);
+    DEFINE_RTYPE(mop_rr_5);
+    DEFINE_RTYPE(mop_rr_6);
+    DEFINE_RTYPE(mop_rr_7);
+  }
+
+  if (isa->extension_enabled(EXT_ZCMOP)) {
+    DISASM_INSN("c.mop.1", c_mop_1, 0, {});
+    DISASM_INSN("c.mop.3", c_mop_3, 0, {});
+    DISASM_INSN("c.mop.5", c_mop_5, 0, {});
+    DISASM_INSN("c.mop.7", c_mop_7, 0, {});
+    DISASM_INSN("c.mop.9", c_mop_9, 0, {});
+    DISASM_INSN("c.mop.11", c_mop_11, 0, {});
+    DISASM_INSN("c.mop.13", c_mop_13, 0, {});
+    DISASM_INSN("c.mop.15", c_mop_15, 0, {});
+  }
+
   if (isa->extension_enabled(EXT_ZKND) ||
       isa->extension_enabled(EXT_ZKNE)) {
     DISASM_INSN("aes64ks1i", aes64ks1i, 0, {&xrd, &xrs1, &rcon});
@@ -2215,7 +2292,7 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
 #define DISASM_VECTOR_VV_VX_VIU(name) \
   DEFINE_VECTOR_VV(name##_vv); \
   DEFINE_VECTOR_VX(name##_vx); \
-  DEFINE_VECTOR_VIU(name##_vx)
+  DEFINE_VECTOR_VIU(name##_vi)
 #define DISASM_VECTOR_VV_VX_VIU_ZIMM6(name) \
   DEFINE_VECTOR_VV(name##_vv); \
   DEFINE_VECTOR_VX(name##_vx); \
@@ -2293,6 +2370,17 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
     DEFINE_VECTOR_VIU(vsm3c_vi);
     DEFINE_VECTOR_VV(vsm3me_vv);
   }
+
+  if (isa->extension_enabled(EXT_ZALASR)) {
+    DEFINE_XLOAD_BASE(lb_aq);
+    DEFINE_XLOAD_BASE(lh_aq);
+    DEFINE_XLOAD_BASE(lw_aq);
+    DEFINE_XLOAD_BASE(ld_aq);
+    DEFINE_XSTORE_BASE(sb_rl);
+    DEFINE_XSTORE_BASE(sh_rl);
+    DEFINE_XSTORE_BASE(sw_rl);
+    DEFINE_XSTORE_BASE(sd_rl);
+  }
 }
 
 disassembler_t::disassembler_t(const isa_parser_t *isa)
@@ -2302,7 +2390,7 @@ disassembler_t::disassembler_t(const isa_parser_t *isa)
 
   // next-highest priority: other instructions in same base ISA
   std::string fallback_isa_string = std::string("rv") + std::to_string(isa->get_max_xlen()) +
-    "gqchv_zfh_zba_zbb_zbc_zbs_zcb_zicbom_zicboz_zicond_zkn_zkr_zks_svinval";
+    "gqchv_zfh_zba_zbb_zbc_zbs_zcb_zicbom_zicboz_zicond_zkn_zkr_zks_svinval_zcmop_zimop";
   isa_parser_t fallback_isa(fallback_isa_string.c_str(), DEFAULT_PRIV);
   add_instructions(&fallback_isa);
 

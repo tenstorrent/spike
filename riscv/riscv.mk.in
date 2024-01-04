@@ -1300,6 +1300,38 @@ riscv_insn_ext_zacas = \
 	amocas_d \
 	$(if $(HAVE_INT128),amocas_q)
 
+riscv_insn_ext_zabha = \
+	amoadd_b \
+	amoand_b \
+	amomax_b \
+	amomaxu_b \
+	amomin_b \
+	amominu_b \
+	amoor_b \
+	amoswap_b \
+	amoxor_b \
+	amocas_b \
+	amoadd_h \
+	amoand_h \
+	amomax_h \
+	amomaxu_h \
+	amomin_h \
+	amominu_h \
+	amoor_h \
+	amoswap_h \
+	amoxor_h \
+	amocas_h \
+
+riscv_insn_ext_zalasr = \
+	lb_aq \
+	lh_aq \
+	lw_aq \
+	ld_aq \
+	sb_rl \
+	sh_rl \
+	sw_rl \
+	sd_rl \
+
 riscv_insn_ext_zvbb = \
 	vandn_vv \
 	vandn_vx \
@@ -1356,6 +1388,10 @@ riscv_insn_ext_zvksh = \
 	vsm3c_vi \
 	vsm3me_vv \
 
+riscv_insn_ext_zimop = \
+	mop_r_N \
+	mop_rr_N \
+
 riscv_insn_ext_zvk = \
 	$(riscv_insn_ext_zvbb) \
 	$(riscv_insn_ext_zvbc) \
@@ -1384,6 +1420,8 @@ riscv_insn_list = \
 	$(riscv_insn_ext_q) \
 	$(riscv_insn_ext_q_zfa) \
 	$(riscv_insn_ext_zacas) \
+	$(riscv_insn_ext_zabha) \
+	$(riscv_insn_ext_zalasr) \
 	$(riscv_insn_ext_zce) \
 	$(riscv_insn_ext_zfh) \
 	$(riscv_insn_ext_zfh_zfa) \
@@ -1392,6 +1430,7 @@ riscv_insn_list = \
 	$(riscv_insn_priv) \
 	$(riscv_insn_smrnmi) \
 	$(riscv_insn_svinval) \
+	$(riscv_insn_ext_zimop) \
 
 riscv_gen_srcs = $(addsuffix .cc,$(riscv_insn_list))
 

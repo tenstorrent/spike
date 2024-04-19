@@ -809,7 +809,8 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
   DEFINE_XSTORE(sw)
   DEFINE_XSTORE(sd)
 
-  if (isa->extension_enabled('A')) {
+  if (isa->extension_enabled('A') ||
+      isa->extension_enabled(EXT_ZAAMO)) {
     DEFINE_XAMO(amoadd_w)
     DEFINE_XAMO(amoswap_w)
     DEFINE_XAMO(amoand_w)
@@ -828,6 +829,10 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
     DEFINE_XAMO(amomax_d)
     DEFINE_XAMO(amominu_d)
     DEFINE_XAMO(amomaxu_d)
+  }
+
+  if (isa->extension_enabled('A') ||
+      isa->extension_enabled(EXT_ZALRSC)) {
     DEFINE_XLOAD_BASE(lr_w)
     DEFINE_XAMO(sc_w)
     DEFINE_XLOAD_BASE(lr_d)
@@ -861,6 +866,12 @@ void disassembler_t::add_instructions(const isa_parser_t* isa)
     DEFINE_XAMO(amominu_h)
     DEFINE_XAMO(amomaxu_h)
     DEFINE_XAMO(amocas_h)
+  }
+
+  if (isa->extension_enabled(EXT_ZICFILP)) {
+    // lpad encodes as `auipc x0, label`, so it needs to be added before auipc
+    // for higher disassembling priority
+    DISASM_INSN("lpad", lpad, 0, {&bigimm});
   }
 
   add_insn(new disasm_insn_t("j", match_jal, mask_jal | mask_rd, {&jump_target}));
@@ -2390,7 +2401,7 @@ disassembler_t::disassembler_t(const isa_parser_t *isa)
 
   // next-highest priority: other instructions in same base ISA
   std::string fallback_isa_string = std::string("rv") + std::to_string(isa->get_max_xlen()) +
-    "gqchv_zfh_zba_zbb_zbc_zbs_zcb_zicbom_zicboz_zicond_zkn_zkr_zks_svinval_zcmop_zimop";
+    "gqcvh_zfh_zba_zbb_zbc_zbs_zcb_zicbom_zicboz_zicond_zkn_zkr_zks_svinval_zcmop_zimop";
   isa_parser_t fallback_isa(fallback_isa_string.c_str(), DEFAULT_PRIV);
   add_instructions(&fallback_isa);
 

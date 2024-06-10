@@ -102,7 +102,7 @@ class pmpaddr_csr_t: public csr_t {
   bool subset_match(reg_t addr, reg_t len) const noexcept;
 
   // Is the specified access allowed given the pmpcfg privileges?
-  bool access_ok(access_type type, reg_t mode) const noexcept;
+  bool access_ok(access_type type, reg_t mode, bool hlvx) const noexcept;
 
   // To check lock bit status from outside like mseccfg
   bool is_locked() const noexcept {
@@ -762,7 +762,7 @@ class vxsat_csr_t: public masked_csr_t {
   virtual bool unlogged_write(const reg_t val) noexcept override;
 };
 
-class hstateen_csr_t: public masked_csr_t {
+class hstateen_csr_t: public basic_csr_t {
  public:
   hstateen_csr_t(processor_t* const proc, const reg_t addr, const reg_t mask, const reg_t init, uint8_t index);
   virtual reg_t read() const noexcept override;
@@ -771,6 +771,8 @@ class hstateen_csr_t: public masked_csr_t {
   virtual bool unlogged_write(const reg_t val) noexcept override;
 protected:
   uint8_t index;
+ private:
+  const reg_t mask;
 };
 
 class sstateen_csr_t: public hstateen_csr_t {
@@ -871,4 +873,11 @@ class hvip_csr_t : public basic_csr_t {
 };
 
 typedef std::shared_ptr<hvip_csr_t> hvip_csr_t_p;
+
+// ssp CSR provided by CFI Zicfiss extension
+class ssp_csr_t final : public masked_csr_t {
+ public:
+  ssp_csr_t(processor_t* const proc, const reg_t addr, const reg_t mask, const reg_t init);
+  virtual void verify_permissions(insn_t insn, bool write) const override;
+};
 #endif

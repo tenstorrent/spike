@@ -175,6 +175,8 @@ struct state_t
 
   csr_t_p srmcfg;
 
+  csr_t_p ssp;
+
   bool serialized; // whether timer CSRs are in a well-defined state
 
   // When true, execute a single instruction and then enter debug mode.  This
@@ -321,7 +323,7 @@ public:
   void clear_waiting_for_interrupt() { in_wfi = false; };
   bool is_waiting_for_interrupt() { return in_wfi; };
 
-  void execute_insn_prehook(insn_t insn);
+  void check_if_lpad_required();
 
 private:
   const isa_parser_t * const isa;

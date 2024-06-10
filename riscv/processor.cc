@@ -94,13 +94,13 @@ processor_t::~processor_t()
   delete disassembler;
 }
 
-static void zicfilp_check_if_lpad_required(const elp_t elp, insn_t insn)
-{
-  if (unlikely(elp == elp_t::LP_EXPECTED)) {
-    // also see riscv/lpad.h for more checks performed
-    software_check((insn.bits() & MASK_LPAD) == MATCH_LPAD, LANDING_PAD_FAULT);
-  }
-}
+// static void zicfilp_check_if_lpad_required(const elp_t elp, insn_t insn)
+// {
+//   if (unlikely(elp == elp_t::LP_EXPECTED)) {
+//     // also see riscv/lpad.h for more checks performed
+//     software_check((insn.bits() & MASK_LPAD) == MATCH_LPAD, LANDING_PAD_FAULT);
+//   }
+// }
 
 static void bad_option_string(const char *option, const char *value,
                               const char *msg)
@@ -453,7 +453,8 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
                               (proc->extension_enabled(EXT_SVADU) ? MENVCFG_ADUE: 0) |
                               (proc->extension_enabled(EXT_SVPBMT) ? MENVCFG_PBMTE : 0) |
                               (proc->extension_enabled(EXT_SSTC) ? MENVCFG_STCE : 0) |
-                              (proc->extension_enabled(EXT_ZICFILP) ? MENVCFG_LPE : 0);
+                              (proc->extension_enabled(EXT_ZICFILP) ? MENVCFG_LPE : 0) |
+                              (proc->extension_enabled(EXT_ZICFISS) ? MENVCFG_SSE : 0);
     const reg_t menvcfg_init = (proc->extension_enabled(EXT_SVPBMT) ? MENVCFG_PBMTE : 0);
     menvcfg = std::make_shared<envcfg_csr_t>(proc, CSR_MENVCFG, menvcfg_mask, menvcfg_init);
     if (xlen == 32) {
@@ -464,14 +465,16 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
     }
     const reg_t senvcfg_mask = (proc->extension_enabled(EXT_ZICBOM) ? SENVCFG_CBCFE | SENVCFG_CBIE : 0) |
                               (proc->extension_enabled(EXT_ZICBOZ) ? SENVCFG_CBZE : 0) |
-                              (proc->extension_enabled(EXT_ZICFILP) ? SENVCFG_LPE : 0);
+                              (proc->extension_enabled(EXT_ZICFILP) ? SENVCFG_LPE : 0) |
+                              (proc->extension_enabled(EXT_ZICFISS) ? SENVCFG_SSE : 0);
     csrmap[CSR_SENVCFG] = senvcfg = std::make_shared<senvcfg_csr_t>(proc, CSR_SENVCFG, senvcfg_mask, 0);
     const reg_t henvcfg_mask = (proc->extension_enabled(EXT_ZICBOM) ? HENVCFG_CBCFE | HENVCFG_CBIE : 0) |
                               (proc->extension_enabled(EXT_ZICBOZ) ? HENVCFG_CBZE : 0) |
                               (proc->extension_enabled(EXT_SVADU) ? HENVCFG_ADUE: 0) |
                               (proc->extension_enabled(EXT_SVPBMT) ? HENVCFG_PBMTE : 0) |
                               (proc->extension_enabled(EXT_SSTC) ? HENVCFG_STCE : 0) |
-                              (proc->extension_enabled(EXT_ZICFILP) ? HENVCFG_LPE : 0);
+                              (proc->extension_enabled(EXT_ZICFILP) ? HENVCFG_LPE : 0) |
+                              (proc->extension_enabled(EXT_ZICFISS) ? HENVCFG_SSE : 0);
     const reg_t henvcfg_init = (proc->extension_enabled(EXT_SVPBMT) ? HENVCFG_PBMTE : 0);
     henvcfg = std::make_shared<henvcfg_csr_t>(proc, CSR_HENVCFG, henvcfg_mask, henvcfg_init, menvcfg);
     if (xlen == 32) {
@@ -535,6 +538,11 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
 
   if (proc->extension_enabled(EXT_ZCMT))
     csrmap[CSR_JVT] = jvt = std::make_shared<jvt_csr_t>(proc, CSR_JVT, 0);
+
+  if (proc->extension_enabled(EXT_ZICFISS)) {
+    reg_t ssp_mask = -reg_t(xlen / 8);
+    csrmap[CSR_SSP] = ssp = std::make_shared<ssp_csr_t>(proc, CSR_SSP, ssp_mask, 0);
+  }
 
 
   // Smcsrind / Sscsrind
@@ -1002,10 +1010,12 @@ const char* processor_t::get_symbol(uint64_t addr)
   return sim->get_symbol(addr);
 }
 
-void processor_t::execute_insn_prehook(insn_t insn)
+void processor_t::check_if_lpad_required()
 {
-  if (extension_enabled(EXT_ZICFILP)) {
-    zicfilp_check_if_lpad_required(state.elp, insn);
+  if (unlikely(state.elp == elp_t::LP_EXPECTED)) {
+    // also see insns/lpad.h for more checks performed
+    insn_fetch_t fetch = mmu->load_insn(state.pc);
+    software_check((fetch.insn.bits() & MASK_LPAD) == MATCH_LPAD, LANDING_PAD_FAULT);
   }
 }
 

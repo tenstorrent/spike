@@ -180,7 +180,7 @@ bool pmpaddr_csr_t::subset_match(reg_t addr, reg_t len) const noexcept {
   return !(is_tor ? tor_homogeneous : napot_homogeneous);
 }
 
-bool pmpaddr_csr_t::access_ok(access_type type, reg_t mode) const noexcept {
+bool pmpaddr_csr_t::access_ok(access_type type, reg_t mode, bool hlvx) const noexcept {
   const bool cfgx = cfg & PMP_X;
   const bool cfgw = cfg & PMP_W;
   const bool cfgr = cfg & PMP_R;
@@ -191,7 +191,7 @@ bool pmpaddr_csr_t::access_ok(access_type type, reg_t mode) const noexcept {
   const bool typer = type == LOAD;
   const bool typex = type == FETCH;
   const bool typew = type == STORE;
-  const bool normal_rwx = (typer && cfgr) || (typew && cfgw) || (typex && cfgx);
+  const bool normal_rwx = (typer && cfgr && (!hlvx || cfgx)) || (typew && cfgw) || (typex && cfgx);
   const bool mseccfg_mml = state->mseccfg->get_mml();
 
   if (mseccfg_mml) {
@@ -1452,7 +1452,7 @@ vxsat_csr_t::vxsat_csr_t(processor_t* const proc, const reg_t addr):
 
 void vxsat_csr_t::verify_permissions(insn_t insn, bool write) const {
   require_vector_vs;
-  if (!proc->extension_enabled('V') && !proc->extension_enabled(EXT_ZPN))
+  if (!proc->extension_enabled('V'))
     throw trap_illegal_instruction(insn.bits());
   masked_csr_t::verify_permissions(insn, write);
 }
@@ -1465,26 +1465,28 @@ bool vxsat_csr_t::unlogged_write(const reg_t val) noexcept {
 // implement class hstateen_csr_t
 hstateen_csr_t::hstateen_csr_t(processor_t* const proc, const reg_t addr, const reg_t mask,
                                const reg_t init, uint8_t index):
-  masked_csr_t(proc, addr, mask, init),
-  index(index) {
+  basic_csr_t(proc, addr, init),
+  index(index),
+  mask(mask) {
 }
 
 reg_t hstateen_csr_t::read() const noexcept {
   // For every bit in an mstateen CSR that is zero (whether read-only zero or set to zero),
   // the same bit appears as read-only zero in the matching hstateen and sstateen CSRs
-  return masked_csr_t::read() & state->mstateen[index]->read();
+  return basic_csr_t::read() & state->mstateen[index]->read();
 }
 
 bool hstateen_csr_t::unlogged_write(const reg_t val) noexcept {
   // For every bit in an mstateen CSR that is zero (whether read-only zero or set to zero),
   // the same bit appears as read-only zero in the matching hstateen and sstateen CSRs
-  return masked_csr_t::unlogged_write(val & state->mstateen[index]->read());
+  const reg_t mask = this->mask & state->mstateen[index]->read();
+  return basic_csr_t::unlogged_write((basic_csr_t::read() & ~mask) | (val & mask));
 }
 
 void hstateen_csr_t::verify_permissions(insn_t insn, bool write) const {
   if ((state->prv < PRV_M) && !(state->mstateen[index]->read() & MSTATEEN_HSTATEEN))
     throw trap_illegal_instruction(insn.bits());
-  masked_csr_t::verify_permissions(insn, write);
+  basic_csr_t::verify_permissions(insn, write);
 }
 
 // implement class sstateen_csr_t
@@ -1756,4 +1758,14 @@ reg_t hvip_csr_t::read() const noexcept {
 bool hvip_csr_t::unlogged_write(const reg_t val) noexcept {
   state->mip->write_with_mask(MIP_VSSIP, val); // hvip.VSSIP is an alias of mip.VSSIP
   return basic_csr_t::unlogged_write(val & (MIP_VSEIP | MIP_VSTIP));
+}
+
+ssp_csr_t::ssp_csr_t(processor_t* const proc, const reg_t addr, const reg_t mask, const reg_t init):
+  masked_csr_t(proc, addr, mask, init) {
+}
+
+void ssp_csr_t::verify_permissions(insn_t insn, bool write) const {
+  masked_csr_t::verify_permissions(insn, write);
+  DECLARE_XENVCFG_VARS(SSE);
+  require_envcfg(SSE);
 }

@@ -20,6 +20,7 @@
 #include "end_pc_exception.h"
 #include "max_instrs_exception.h"
 
+#define FIRST_HPMCOUNTER 3
 #define N_HPMCOUNTERS 29
 
 class processor_t;
@@ -45,7 +46,7 @@ struct insn_desc_t
   insn_func_t logged_rv32e;
   insn_func_t logged_rv64e;
 
-  insn_func_t func(int xlen, bool rve, bool logged)
+  insn_func_t func(int xlen, bool rve, bool logged) const
   {
     if (logged)
       if (rve)
@@ -59,16 +60,11 @@ struct insn_desc_t
         return xlen == 64 ? fast_rv64i : fast_rv32i;
   }
 
-  static insn_desc_t illegal()
-  {
-    return {0, 0,
-            &illegal_instruction, &illegal_instruction, &illegal_instruction, &illegal_instruction,
-            &illegal_instruction, &illegal_instruction, &illegal_instruction, &illegal_instruction};
-  }
+  static const insn_desc_t illegal_instruction;
 };
 
 // regnum, data
-typedef std::unordered_map<reg_t, freg_t> commit_log_reg_t;
+typedef std::map<reg_t, freg_t> commit_log_reg_t;
 
 // addr, value, size
 typedef std::vector<std::tuple<reg_t, uint64_t, uint8_t>> commit_log_mem_t;
@@ -77,6 +73,7 @@ typedef std::vector<std::tuple<reg_t, uint64_t, uint8_t>> commit_log_mem_t;
 struct state_t
 {
   void reset(processor_t* const proc, reg_t max_isa);
+  void add_csr(reg_t addr, const csr_t_p& csr);
 
   reg_t pc;
   regfile_t<reg_t, NXPR, true> XPR;
@@ -104,6 +101,7 @@ struct state_t
   csr_t_p medeleg;
   csr_t_p mideleg;
   csr_t_p mcounteren;
+  csr_t_p mcountinhibit;
   csr_t_p mevent[N_HPMCOUNTERS];
   csr_t_p mnstatus;
   csr_t_p mnepc;
@@ -130,6 +128,7 @@ struct state_t
   csr_t_p htval;
   csr_t_p htinst;
   csr_t_p hgatp;
+  hvip_csr_t_p hvip;
   sstatus_csr_t_p sstatus;
   vsstatus_csr_t_p vsstatus;
   csr_t_p vstvec;
@@ -142,6 +141,7 @@ struct state_t
   dcsr_csr_t_p dcsr;
   csr_t_p tselect;
   csr_t_p tdata2;
+  csr_t_p tcontrol;
   csr_t_p scontext;
   csr_t_p mcontext;
 
@@ -172,6 +172,8 @@ struct state_t
   csr_t_p stimecmp;
   csr_t_p vstimecmp;
 
+  csr_t_p ssp;
+
   bool serialized; // whether timer CSRs are in a well-defined state
 
   // When true, execute a single instruction and then enter debug mode.  This
@@ -188,18 +190,67 @@ struct state_t
   reg_t last_inst_priv;
   int last_inst_xlen;
   int last_inst_flen;
+
+  elp_t elp;
+
+  bool critical_error;
+
+ private:
+  void csr_init(processor_t* const proc, reg_t max_isa);
+};
+
+class opcode_cache_entry_t {
+ public:
+  opcode_cache_entry_t()
+  {
+    reset();
+  }
+
+  void reset()
+  {
+    for (size_t i = 0; i < associativity; i++) {
+      tag[i] = 0;
+      contents[i] = &insn_desc_t::illegal_instruction;
+    }
+  }
+
+  void replace(insn_bits_t opcode, const insn_desc_t* desc)
+  {
+    for (size_t i = associativity - 1; i > 0; i--) {
+      tag[i] = tag[i-1];
+      contents[i] = contents[i-1];
+    }
+
+    tag[0] = opcode;
+    contents[0] = desc;
+  }
+
+  std::tuple<bool, const insn_desc_t*> lookup(insn_bits_t opcode)
+  {
+    for (size_t i = 0; i < associativity; i++)
+      if (tag[i] == opcode)
+        return std::tuple(true, contents[i]);
+
+    return std::tuple(false, nullptr);
+  }
+
+ private:
+  static const size_t associativity = 4;
+  insn_bits_t tag[associativity];
+  const insn_desc_t* contents[associativity];
 };
 
 // this class represents one processor in a RISC-V machine.
 class processor_t : public abstract_device_t
 {
 public:
-  processor_t(const isa_parser_t *isa, const cfg_t* cfg,
+  processor_t(const char* isa_str, const char* priv_str,
+              const cfg_t* cfg,
               simif_t* sim, uint32_t id, bool halt_on_reset,
               FILE *log_file, std::ostream& sout_); // because of command line option --log and -s we need both
   ~processor_t();
 
-  const isa_parser_t &get_isa() { return *isa; }
+  const isa_parser_t &get_isa() { return isa; }
   const cfg_t &get_cfg() { return *cfg; }
 
   void set_debug(bool value);
@@ -231,6 +282,9 @@ public:
   bool any_custom_extensions() const {
     return !custom_extensions.empty();
   }
+  bool any_vector_extensions() const {
+    return VU.VLEN > 0;
+  }
   bool extension_enabled(unsigned char ext) const {
     return extension_enabled(isa_extension_t(ext));
   }
@@ -258,7 +312,7 @@ public:
   void set_extension_enable(unsigned char ext, bool enable) {
     assert(!extension_assumed_const[ext]);
     extension_dynamic[ext] = true;
-    extension_enable_table[ext] = enable && isa->extension_enabled(ext);
+    extension_enable_table[ext] = enable && isa.extension_enabled(ext);
   }
   void set_impl(uint8_t impl, bool val) { impl_table[impl] = val; }
   bool supports_impl(uint8_t impl) const {
@@ -282,7 +336,12 @@ public:
 
   FILE *get_log_file() { return log_file; }
 
-  void register_insn(insn_desc_t);
+  void register_base_insn(insn_desc_t insn) {
+    register_insn(insn, false /* is_custom */);
+  }
+  void register_custom_insn(insn_desc_t insn) {
+    register_insn(insn, true /* is_custom */);
+  }
   void register_extension(extension_t*);
 
   // MMIO slave interface
@@ -311,8 +370,10 @@ public:
   void clear_waiting_for_interrupt() { in_wfi = false; };
   bool is_waiting_for_interrupt() { return in_wfi; };
 
+  void check_if_lpad_required();
+
 private:
-  const isa_parser_t * const isa;
+  const isa_parser_t isa;
   const cfg_t * const cfg;
 
   simif_t* sim;
@@ -340,19 +401,21 @@ private:
   mutable std::bitset<NUM_ISA_EXTENSIONS> extension_assumed_const;
 
   std::vector<insn_desc_t> instructions;
+  std::vector<insn_desc_t> custom_instructions;
   std::unordered_map<reg_t,uint64_t> pc_histogram;
 
-  static const size_t OPCODE_CACHE_SIZE = 8191;
-  insn_desc_t opcode_cache[OPCODE_CACHE_SIZE];
+  static const size_t OPCODE_CACHE_SIZE = 4095;
+  opcode_cache_entry_t opcode_cache[OPCODE_CACHE_SIZE];
 
   void take_pending_interrupt() { take_interrupt(state.mip->read() & state.mie->read()); }
   void take_interrupt(reg_t mask); // take first enabled interrupt in mask
   void take_trap(trap_t& t, reg_t epc); // take an exception
   void take_trigger_action(triggers::action_t action, reg_t breakpoint_tval, reg_t epc, bool virt);
   void disasm(insn_t insn); // disassemble and print an instruction
+  void register_insn(insn_desc_t, bool);
   int paddr_bits();
 
-  void enter_debug_mode(uint8_t cause);
+  void enter_debug_mode(uint8_t cause, uint8_t ext_cause);
 
   void debug_output_log(std::stringstream *s); // either output to interactive user or write to log file
 
@@ -361,7 +424,6 @@ private:
   friend class plic_t;
   friend class extension_t;
 
-  void parse_varch_string(const char*);
   void parse_priv_string(const char*);
   void build_opcode_map();
   void register_base_instructions();
